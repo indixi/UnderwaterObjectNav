@@ -1,0 +1,6 @@
+# 结束当前 Episode；success=false 时必须填写 failure_reason。
+bool success
+string failure_reason
+---
+bool accepted
+string message

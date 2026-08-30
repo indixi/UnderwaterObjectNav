@@ -1,0 +1,17 @@
+# 数据采集器参数。话题默认与 aquaflow_stonefish 的 bricsbot 场景一致。
+vehicle_name: bricsbot
+rgb_topic: /bricsbot/rgb/image_color
+depth_topic: /bricsbot/depth/image_depth
+pose_topic: /bricsbot/odometry
+reference_topic: /aquaflow/nominal_pose
+expert_action_topic: /underwater_objectnav/expert_action
+status_topic: /underwater_objectnav/collector_status
+
+dataset_root: ""
+sync_queue_size: 20
+sync_slop_s: 0.08
+max_observation_age_s: 0.25
+forward_position_tolerance_m: 0.035
+turn_angle_tolerance_deg: 3.0
+action_timeout_s: 15.0
+auto_end_on_stop: false

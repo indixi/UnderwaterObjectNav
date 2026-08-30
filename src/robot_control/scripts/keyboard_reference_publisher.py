@@ -3,20 +3,23 @@
 
 W: create a target 0.5 m ahead of the current vehicle pose.
 A/D: create a target with +/-30 deg yaw at the current position.
-Space: hold the current pose.
+Space: hold the current pose and publish the ObjectNav STOP label.
 
-The node publishes PoseStamped references; it does not publish PWM or force
-commands directly.  Each key action is computed from the latest odometry.
+The node publishes PoseStamped references and a discrete expert-action label;
+it does not publish PWM or force commands directly. Each key action is computed
+from the latest odometry.
 """
 import math
 import select
 import sys
 import termios
 import tty
+from collections import deque
 
 import rospy
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
+from std_msgs.msg import String
 
 
 def yaw_from_quat(q):
@@ -36,6 +39,8 @@ class KeyboardReferencePublisher:
             root + "odom_topic", "/%s/odometry" % self.vehicle_name)
         self.reference_topic = rospy.get_param(
             root + "reference_topic", "/aquaflow/nominal_pose")
+        self.action_topic = rospy.get_param(
+            root + "action_topic", "/underwater_objectnav/expert_action")
         self.frame_id = rospy.get_param(root + "frame_id", "world_ned")
         self.publish_rate_hz = max(
             1.0, float(rospy.get_param(root + "publish_rate_hz", 20.0)))
@@ -47,12 +52,19 @@ class KeyboardReferencePublisher:
             0.0, float(rospy.get_param(root + "odom_timeout_s", 0.25)))
         self.key_repeat_guard = max(
             0.0, float(rospy.get_param(root + "key_repeat_guard_s", 0.10)))
+        # 两次专家动作之间的最小间隔，供数据采集节点使用同一个动作事件。
+        # 按键不会立即生效，而是在固定延迟后发布，给专家充足的观察时间。
+        self.command_delay = max(
+            0.0, float(rospy.get_param(root + "command_delay_s", 5.0)))
 
         self.odom = None
         self.target = None
         self.last_key_time = rospy.Time(0)
+        self.pending_commands = deque()
         self.reference_pub = rospy.Publisher(
             self.reference_topic, PoseStamped, queue_size=1)
+        self.action_pub = rospy.Publisher(
+            self.action_topic, String, queue_size=10)
         rospy.Subscriber(self.odom_topic, Odometry,
                          self.odom_cb, queue_size=1)
         self.timer = rospy.Timer(
@@ -111,17 +123,30 @@ class KeyboardReferencePublisher:
         elif key == "d":
             target_yaw -= self.turn_angle
 
-        self.target = self.make_target(target_x, target_y, z, target_yaw)
+        target = self.make_target(target_x, target_y, z, target_yaw)
         self.last_key_time = now
-        action = {"w": "forward", "a": "turn left", "d": "turn right",
-                  " ": "hold"}[key]
-        rospy.loginfo("keyboard %s: target=(%.3f, %.3f, %.3f), yaw=%.1f deg",
-                      action, target_x, target_y, z, math.degrees(target_yaw))
+        # Space 在 ObjectNav 数据集中对应 STOP；控制目标仍保持当前位置。
+        action = {"w": "FORWARD", "a": "TURN_LEFT", "d": "TURN_RIGHT",
+                  " ": "STOP"}[key]
+        due_time = now + rospy.Duration(self.command_delay)
+        self.pending_commands.append((due_time, target, action))
+        rospy.loginfo("keyboard %s 已排队，将在 %.2f 秒后执行；队列长度=%d",
+                      action, self.command_delay, len(self.pending_commands))
 
     def publish(self, _event):
+        now = rospy.Time.now()
+        # 按键发生 command_delay_s 后，成对发布目标位姿和动作标签。
+        while self.pending_commands and self.pending_commands[0][0] <= now:
+            _, target, action = self.pending_commands.popleft()
+            self.target = target
+            self.target.header.stamp = now
+            self.reference_pub.publish(self.target)
+            self.action_pub.publish(String(data=action))
+            rospy.loginfo("执行延迟键盘动作：%s，剩余队列=%d",
+                          action, len(self.pending_commands))
         if self.target is None:
             return
-        self.target.header.stamp = rospy.Time.now()
+        self.target.header.stamp = now
         self.reference_pub.publish(self.target)
 
     def shutdown(self):
@@ -140,7 +165,7 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-        rospy.loginfo("Keyboard control: W=forward, A/D=turn, SPACE=hold, Q=quit")
+        rospy.loginfo("Keyboard control: W=forward, A/D=turn, SPACE=STOP, Q=quit; 延迟由 command_delay_s 控制")
         while not rospy.is_shutdown():
             ready, _, _ = select.select([sys.stdin], [], [], 0.05)
             if not ready:

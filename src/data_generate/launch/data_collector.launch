@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="vehicle_name" default="bricsbot"/>
+  <arg name="dataset_root" default="$(find data_generate)/underwater_objectnav_dataset"/>
+  <arg name="reference_topic" default="/aquaflow/nominal_pose"/>
+
+  <node pkg="data_generate" type="objectnav_data_collector.py"
+        name="objectnav_data_collector" output="screen">
+    <rosparam command="load" file="$(find data_generate)/config/collector.yaml"/>
+    <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="dataset_root" value="$(arg dataset_root)"/>
+    <param name="reference_topic" value="$(arg reference_topic)"/>
+  </node>
+</launch>

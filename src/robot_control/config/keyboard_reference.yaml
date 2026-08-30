@@ -3,11 +3,13 @@ keyboard_reference_publisher:
 
   odom_topic: /bricsbot/odometry
   reference_topic: /aquaflow/nominal_pose
+  action_topic: /underwater_objectnav/expert_action
   frame_id: world_ned
-  publish_rate_hz: 50.0
+  publish_rate_hz: 20.0
 
   forward_distance_m: 0.5
   turn_angle_deg: 30.0
 
   odom_timeout_s: 0.25
   key_repeat_guard_s: 0.10
+  command_delay_s: 5.0

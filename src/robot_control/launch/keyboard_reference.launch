@@ -1,10 +1,14 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="command_delay_s" default="5.0"
+       doc="键盘动作发布前的延迟时间，单位为秒"/>
   <node pkg="robot_control"
         type="keyboard_reference_publisher.py"
         name="keyboard_reference_publisher"
         output="screen">
     <rosparam command="load"
               file="$(find robot_control)/config/keyboard_reference.yaml"/>
+    <param name="keyboard_reference_publisher/command_delay_s"
+           value="$(arg command_delay_s)"/>
   </node>
 </launch>

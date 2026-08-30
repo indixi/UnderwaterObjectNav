@@ -1,0 +1,8 @@
+# 开始一个新的数据采集 Episode。
+string scene_id
+string goal_category
+---
+bool accepted
+int32 episode_id
+string episode_dir
+string message
