@@ -24,6 +24,13 @@
 
 
 
+  <arg name="dataset_root" default="$(find data_generate)/underwater_objectnav_dataset"/>
+
+  <arg name="command_delay_s" default="3.0"
+       doc="键盘动作发布前的延迟时间，单位为秒"/>
+
+
+
   <!-- scene begin -->
   <include file="$(find aquaflow_stonefish)/launch/rock_seaurchin.launch">
     <arg name="scene" value="$(arg scene)"/>
@@ -46,12 +53,22 @@
     <param name="reference_tuning_publisher/pose_topic"
            value="$(arg reference_topic)"/>
   </node> -->
+
+  <node pkg="data_generate" type="objectnav_data_collector.py"
+        name="objectnav_data_collector" output="screen">
+    <rosparam command="load" file="$(find data_generate)/config/collector.yaml"/>
+    <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="dataset_root" value="$(arg dataset_root)"/>
+    <param name="reference_topic" value="$(arg reference_topic)"/>
+  </node>
   <node pkg="robot_control"
         type="keyboard_reference_publisher.py"
         name="keyboard_reference_publisher"
         output="screen">
     <rosparam command="load"
               file="$(find robot_control)/config/keyboard_reference.yaml"/>
+     <param name="keyboard_reference_publisher/command_delay_s"
+           value="$(arg command_delay_s)"/>
   </node>
 
   <node pkg="robot_control"
