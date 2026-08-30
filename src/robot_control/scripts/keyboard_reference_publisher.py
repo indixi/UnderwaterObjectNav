@@ -101,6 +101,25 @@ class KeyboardReferencePublisher:
         msg.pose.orientation.z, msg.pose.orientation.w = q[2], q[3]
         return msg
 
+    def target_for_action(self, action, base_pose):
+        """在动作真正执行时，基于最新实际位姿生成目标。"""
+        x = base_pose.position.x
+        y = base_pose.position.y
+        z = base_pose.position.z
+        yaw = yaw_from_quat(base_pose.orientation)
+        target_yaw = yaw
+        target_x, target_y = x, y
+
+        if action == "FORWARD":
+            target_x += self.forward_distance * math.cos(yaw)
+            target_y += self.forward_distance * math.sin(yaw)
+        elif action == "TURN_LEFT":
+            target_yaw += self.turn_angle
+        elif action == "TURN_RIGHT":
+            target_yaw -= self.turn_angle
+
+        return self.make_target(target_x, target_y, z, target_yaw)
+
     def process_key(self, key):
         if key not in ("w", "a", "d", " "):
             return
@@ -111,22 +130,6 @@ class KeyboardReferencePublisher:
         if current is None:
             return
 
-        x = current.position.x
-        y = current.position.y
-        z = current.position.z
-        yaw = yaw_from_quat(current.orientation)
-        target_yaw = yaw
-        target_x, target_y = x, y
-
-        if key == "w":
-            target_x += self.forward_distance * math.cos(yaw)
-            target_y += self.forward_distance * math.sin(yaw)
-        elif key == "a":
-            target_yaw += self.turn_angle
-        elif key == "d":
-            target_yaw -= self.turn_angle
-
-        target = self.make_target(target_x, target_y, z, target_yaw)
         self.last_key_time = now
         # Space 在 ObjectNav 数据集中对应 STOP；控制目标仍保持当前位置。
         action = {"w": "FORWARD", "a": "TURN_LEFT", "d": "TURN_RIGHT",
@@ -140,20 +143,24 @@ class KeyboardReferencePublisher:
             # 同一时刻到期后被 publish() 一次性全部执行。
             base_time = max(now, self.last_scheduled_time)
             due_time = base_time + rospy.Duration(delay)
-        self.pending_commands.append((due_time, target, action))
+        self.pending_commands.append((due_time, action))
         self.has_scheduled_command = True
         self.last_scheduled_time = due_time
         rospy.loginfo(
-            "keyboard %s 已排队，将在 %.2f 秒后执行；target=(x=%.3f,y=%.3f,z=%.3f,yaw=%.3f)，队列长度=%d",
-            action, delay, target.pose.position.x, target.pose.position.y,
-            target.pose.position.z, yaw_from_quat(target.pose.orientation),
-            len(self.pending_commands))
+            "keyboard %s 已排队，将在 %.2f 秒后执行（届时按实际位姿计算 target）；队列长度=%d",
+            action, delay, len(self.pending_commands))
 
     def publish(self, _event):
         now = rospy.Time.now()
         # 到达动作的计划时间后，成对发布目标位姿和动作标签。
         while self.pending_commands and self.pending_commands[0][0] <= now:
-            _, target, action = self.pending_commands.popleft()
+            _, action = self.pending_commands.popleft()
+            current = self.current_pose()
+            if current is None:
+                rospy.logwarn("执行动作 %s 时没有有效实际位姿，等待下一次重试", action)
+                self.pending_commands.appendleft((now + rospy.Duration(0.1), action))
+                break
+            target = self.target_for_action(action, current)
             self.target = target
             self.target.header.stamp = now
             self.reference_pub.publish(self.target)
