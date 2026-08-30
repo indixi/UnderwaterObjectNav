@@ -3,9 +3,7 @@ vehicle_name: bricsbot
 rgb_topic: /bricsbot/rgb/image_color
 depth_topic: /bricsbot/depth/image_depth
 pose_topic: /bricsbot/odometry
-reference_topic: /aquaflow/nominal_pose
-expert_action_topic: /underwater_objectnav/expert_action
-status_topic: /underwater_objectnav/collector_status
+action_status_topic: /underwater_objectnav/action_status
 
 dataset_root: ""
 sync_queue_size: 20 #RGB、Depth、Odometry 同步缓存队列的长度

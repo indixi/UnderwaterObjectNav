@@ -59,7 +59,6 @@
     <rosparam command="load" file="$(find data_generate)/config/collector.yaml"/>
     <param name="vehicle_name" value="$(arg vehicle_name)"/>
     <param name="dataset_root" value="$(arg dataset_root)"/>
-    <param name="reference_topic" value="$(arg reference_topic)"/>
   </node>
   <node pkg="robot_control"
         type="keyboard_reference_publisher.py"
@@ -67,7 +66,15 @@
         output="screen">
     <rosparam command="load"
               file="$(find robot_control)/config/keyboard_reference.yaml"/>
-     <param name="keyboard_reference_publisher/command_delay_s"
+  </node>
+
+  <node pkg="robot_control"
+        type="action_executor.py"
+        name="action_executor"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/action_executor.yaml"/>
+    <param name="action_executor/command_delay_s"
            value="$(arg command_delay_s)"/>
   </node>
 

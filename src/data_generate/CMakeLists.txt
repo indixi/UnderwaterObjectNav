@@ -3,7 +3,7 @@ project(data_generate)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs message_generation message_filters nav_msgs rospy
-  sensor_msgs std_msgs cv_bridge
+  robot_control sensor_msgs std_msgs cv_bridge
 )
 
 add_service_files(
@@ -16,7 +16,7 @@ add_service_files(
 generate_messages(DEPENDENCIES geometry_msgs)
 
 catkin_package(CATKIN_DEPENDS geometry_msgs message_runtime message_filters
-  nav_msgs rospy sensor_msgs std_msgs cv_bridge)
+  nav_msgs robot_control rospy sensor_msgs std_msgs cv_bridge)
 
 catkin_install_python(PROGRAMS
   scripts/objectnav_data_collector.py

@@ -1,18 +1,5 @@
 keyboard_reference_publisher:
   vehicle_name: bricsbot
 
-  odom_topic: /bricsbot/odometry
-  reference_topic: /aquaflow/nominal_pose
-  action_topic: /underwater_objectnav/expert_action
-  status_topic: /underwater_objectnav/collector_status
-  wait_for_collector_completion: true
-  frame_id: world_ned
-  publish_rate_hz: 20.0
-
-  forward_distance_m: 0.5
-  turn_angle_deg: 30.0
-
-  odom_timeout_s: 0.25
+  request_topic: /underwater_objectnav/action_request
   key_repeat_guard_s: 0.10
-  initial_command_delay_s: 0.0
-  command_delay_s: 5.0

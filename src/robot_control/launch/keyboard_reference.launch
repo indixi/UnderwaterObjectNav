@@ -1,22 +1,23 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="command_delay_s" default="5.0"
-       doc="键盘动作发布前的延迟时间，单位为秒"/>
-  <arg name="initial_command_delay_s" default="0.0"
-       doc="第一个键盘动作发布前的延迟时间，单位为秒"/>
-  <arg name="wait_for_collector_completion" default="true"
-       doc="是否等待数据采集器确认上一个动作完成"/>
+  <arg name="command_delay_s" default="5.0"/>
+  <arg name="initial_command_delay_s" default="0.0"/>
   <node pkg="robot_control"
         type="keyboard_reference_publisher.py"
         name="keyboard_reference_publisher"
         output="screen">
     <rosparam command="load"
               file="$(find robot_control)/config/keyboard_reference.yaml"/>
-    <param name="keyboard_reference_publisher/command_delay_s"
+  </node>
+  <node pkg="robot_control"
+        type="action_executor.py"
+        name="action_executor"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/action_executor.yaml"/>
+    <param name="action_executor/command_delay_s"
            value="$(arg command_delay_s)"/>
-    <param name="keyboard_reference_publisher/initial_command_delay_s"
+    <param name="action_executor/initial_command_delay_s"
            value="$(arg initial_command_delay_s)"/>
-    <param name="keyboard_reference_publisher/wait_for_collector_completion"
-           value="$(arg wait_for_collector_completion)"/>
   </node>
 </launch>

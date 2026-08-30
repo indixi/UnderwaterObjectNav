@@ -1,0 +1,17 @@
+action_executor:
+  vehicle_name: bricsbot
+  odom_topic: /bricsbot/odometry
+  request_topic: /underwater_objectnav/action_request
+  reference_topic: /aquaflow/nominal_pose
+  status_topic: /underwater_objectnav/action_status
+  frame_id: world_ned
+  rate_hz: 20.0
+
+  command_delay_s: 5.0
+  initial_command_delay_s: 0.0
+  forward_distance_m: 0.5
+  turn_angle_deg: 30.0
+  odom_timeout_s: 0.25
+  forward_position_tolerance_m: 0.035
+  turn_angle_tolerance_deg: 3.0
+  action_timeout_s: 15.0

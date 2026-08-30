@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="robot_control"
+        type="action_executor.py"
+        name="action_executor"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/action_executor.yaml"/>
+  </node>
+</launch>
