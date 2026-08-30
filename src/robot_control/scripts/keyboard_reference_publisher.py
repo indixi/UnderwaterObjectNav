@@ -143,8 +143,11 @@ class KeyboardReferencePublisher:
         self.pending_commands.append((due_time, target, action))
         self.has_scheduled_command = True
         self.last_scheduled_time = due_time
-        rospy.loginfo("keyboard %s 已排队，将在 %.2f 秒后执行；队列长度=%d",
-                      action, delay, len(self.pending_commands))
+        rospy.loginfo(
+            "keyboard %s 已排队，将在 %.2f 秒后执行；target=(x=%.3f,y=%.3f,z=%.3f,yaw=%.3f)，队列长度=%d",
+            action, delay, target.pose.position.x, target.pose.position.y,
+            target.pose.position.z, yaw_from_quat(target.pose.orientation),
+            len(self.pending_commands))
 
     def publish(self, _event):
         now = rospy.Time.now()
@@ -155,8 +158,12 @@ class KeyboardReferencePublisher:
             self.target.header.stamp = now
             self.reference_pub.publish(self.target)
             self.action_pub.publish(String(data=action))
-            rospy.loginfo("执行延迟键盘动作：%s，剩余队列=%d",
-                          action, len(self.pending_commands))
+            rospy.loginfo(
+                "执行延迟键盘动作：%s，target=(x=%.3f,y=%.3f,z=%.3f,yaw=%.3f)，剩余队列=%d",
+                action, self.target.pose.position.x, self.target.pose.position.y,
+                self.target.pose.position.z,
+                yaw_from_quat(self.target.pose.orientation),
+                len(self.pending_commands))
         if self.target is None:
             return
         self.target.header.stamp = now
