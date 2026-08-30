@@ -52,15 +52,18 @@ class KeyboardReferencePublisher:
             0.0, float(rospy.get_param(root + "odom_timeout_s", 0.25)))
         self.key_repeat_guard = max(
             0.0, float(rospy.get_param(root + "key_repeat_guard_s", 0.10)))
-        # 两次专家动作之间的最小间隔，供数据采集节点使用同一个动作事件。
-        # 按键不会立即生效，而是在固定延迟后发布，给专家充足的观察时间。
+        # 两次专家动作之间的延迟，供数据采集节点使用同一个动作事件。
         self.command_delay = max(
             0.0, float(rospy.get_param(root + "command_delay_s", 5.0)))
+        self.initial_command_delay = max(
+            0.0, float(rospy.get_param(root + "initial_command_delay_s", 0.0)))
 
         self.odom = None
         self.target = None
         self.last_key_time = rospy.Time(0)
         self.pending_commands = deque()
+        self.has_scheduled_command = False
+        self.last_scheduled_time = None
         self.reference_pub = rospy.Publisher(
             self.reference_topic, PoseStamped, queue_size=1)
         self.action_pub = rospy.Publisher(
@@ -128,14 +131,24 @@ class KeyboardReferencePublisher:
         # Space 在 ObjectNav 数据集中对应 STOP；控制目标仍保持当前位置。
         action = {"w": "FORWARD", "a": "TURN_LEFT", "d": "TURN_RIGHT",
                   " ": "STOP"}[key]
-        due_time = now + rospy.Duration(self.command_delay)
+        if not self.has_scheduled_command:
+            delay = self.initial_command_delay
+            due_time = now + rospy.Duration(delay)
+        else:
+            delay = self.command_delay
+            # 后续动作以前一个已排程动作的时间为基准，避免连续按键在
+            # 同一时刻到期后被 publish() 一次性全部执行。
+            base_time = max(now, self.last_scheduled_time)
+            due_time = base_time + rospy.Duration(delay)
         self.pending_commands.append((due_time, target, action))
+        self.has_scheduled_command = True
+        self.last_scheduled_time = due_time
         rospy.loginfo("keyboard %s 已排队，将在 %.2f 秒后执行；队列长度=%d",
-                      action, self.command_delay, len(self.pending_commands))
+                      action, delay, len(self.pending_commands))
 
     def publish(self, _event):
         now = rospy.Time.now()
-        # 按键发生 command_delay_s 后，成对发布目标位姿和动作标签。
+        # 到达动作的计划时间后，成对发布目标位姿和动作标签。
         while self.pending_commands and self.pending_commands[0][0] <= now:
             _, target, action = self.pending_commands.popleft()
             self.target = target

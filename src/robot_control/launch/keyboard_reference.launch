@@ -2,6 +2,8 @@
 <launch>
   <arg name="command_delay_s" default="5.0"
        doc="键盘动作发布前的延迟时间，单位为秒"/>
+  <arg name="initial_command_delay_s" default="0.0"
+       doc="第一个键盘动作发布前的延迟时间，单位为秒"/>
   <node pkg="robot_control"
         type="keyboard_reference_publisher.py"
         name="keyboard_reference_publisher"
@@ -10,5 +12,7 @@
               file="$(find robot_control)/config/keyboard_reference.yaml"/>
     <param name="keyboard_reference_publisher/command_delay_s"
            value="$(arg command_delay_s)"/>
+    <param name="keyboard_reference_publisher/initial_command_delay_s"
+           value="$(arg initial_command_delay_s)"/>
   </node>
 </launch>

@@ -12,4 +12,5 @@ keyboard_reference_publisher:
 
   odom_timeout_s: 0.25
   key_repeat_guard_s: 0.10
+  initial_command_delay_s: 0.0
   command_delay_s: 5.0
