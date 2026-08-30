@@ -1,0 +1,30 @@
+reference_tuning_publisher:
+  frame_id: world_ned
+  velocity_frame_id: base_link
+  pose_topic: /aquaflow/nominal_pose
+  velocity_topic: /robot_control/reference_velocity
+  publish_rate_hz: 10.0
+
+  trajectory:
+    type: line
+    x_start: 5.0
+    x_end: 10.0
+    y: 10.0
+    z: 2.0
+    yaw: 2.0
+    spacing: 0.25
+    figure_eight_center_x: 0.0
+    figure_eight_center_y: 0.0
+    figure_eight_amplitude_x: 2.0
+    figure_eight_amplitude_y: 1.5
+    figure_eight_points: 160
+
+  velocity_profile:
+    type: constant
+    vx: 1
+    vy: 0
+    vz: 0.0
+    yaw_rate: 0
+    sine_amplitude: 0.10
+    sine_frequency_hz: 0.10
+    step_time_s: 5.0

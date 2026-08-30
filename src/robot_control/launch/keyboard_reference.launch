@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="robot_control"
+        type="keyboard_reference_publisher.py"
+        name="keyboard_reference_publisher"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/keyboard_reference.yaml"/>
+  </node>
+</launch>

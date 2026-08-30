@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="robot_control"
+        type="reference_tuning_publisher.py"
+        name="reference_tuning_publisher"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/reference_tuning.yaml"/>
+  </node>
+</launch>

@@ -1,0 +1,405 @@
+<?xml version="1.0"?>
+<!--
+  岩石与海胆场景：以 aquaflow_empty_pool.scn 为基础，在池底中央偏右放置
+  一块低矮岩石，并在岩石上表面布置 9 只海胆。项目采用 NED 坐标系，z 向下。
+
+  模型坐标说明：
+  1. rockFlat.obj 的局部 Y 是高度轴，因此绕 X 轴旋转 -pi/2，使局部 +Y
+     指向世界 -Z（朝向水面）。岩石中心放在 z=3.835，使底部接近 z=4.0 池底。
+  2. Mesh_SeaUrchin.obj 声明以厘米为单位，因此使用 scale=0.01；模型局部 Z
+     为主要竖直方向，绕 X 轴旋转 pi，使海胆从岩石表面朝世界 -Z 伸展。
+  3. OBJ 文件位于 scenarios/models，而 simulation_data 指向 data，因此这里
+     使用 $(find aquaflow_stonefish) 构造包内绝对路径。
+-->
+<scenario>
+	<environment>
+		<ned latitude="56.136459" longitude="-2.706819"/>
+		<ocean>
+			<water density="1031.0" jerlov="0.15"/>
+			<waves height="0.0"/>
+			<particles enabled="false"/>
+			<current type="uniform">
+				<velocity xyz="0.0 0.0 0.0"/>
+			</current>
+		</ocean>
+		<atmosphere>
+			<sun azimuth="45.0" elevation="60.0"/>
+		</atmosphere>
+	</environment>
+
+	<!-- 材料名称与 BlueROV2 定义保持一致；海胆暂用中性材料参与静态碰撞。 -->
+	<materials>
+		<material name="Neutral" density="1000.0" restitution="0.1"/>
+		<material name="Rock" density="3000.0" restitution="0.2"/>
+		<material name="Fiberglass" density="1500.0" restitution="0.3"/>
+		<material name="Aluminium" density="2710.0" restitution="0.5"/>
+		<friction_table>
+			<friction material1="Neutral" material2="Neutral" static="0.5" dynamic="0.2"/>
+			<friction material1="Neutral" material2="Rock" static="0.2" dynamic="0.1"/>
+			<friction material1="Neutral" material2="Fiberglass" static="0.5" dynamic="0.2"/>
+			<friction material1="Neutral" material2="Aluminium" static="0.1" dynamic="0.02"/>
+			<friction material1="Rock" material2="Rock" static="0.9" dynamic="0.7"/>
+			<friction material1="Rock" material2="Fiberglass" static="0.6" dynamic="0.4"/>
+			<friction material1="Rock" material2="Aluminium" static="0.6" dynamic="0.3"/>
+			<friction material1="Fiberglass" material2="Fiberglass" static="0.5" dynamic="0.2"/>
+			<friction material1="Fiberglass" material2="Aluminium" static="0.5" dynamic="0.2"/>
+			<friction material1="Aluminium" material2="Aluminium" static="0.8" dynamic="0.5"/>
+		</friction_table>
+	</materials>
+
+	<looks>
+		<!-- BlueROV2 定义引用的基础外观。 -->
+		<look name="black" gray="0.05" roughness="0.2"/>
+		<look name="yellow" rgb="1.0 0.9 0.0" roughness="0.3"/>
+		<look name="gray" gray="0.5" roughness="0.4" metalness="0.5"/>
+
+		<!-- <look name="pool_floor" rgb="0.64 0.72 0.70" roughness="0.95"/> -->
+		<look name="pool_floor" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/Sand/texture/soil_sand_0045_01.jpg" roughness="0.95" metalness="0.0"/>
+		<look name="pool_wall" rgb="0.82 0.90 0.92" roughness="0.85"/>
+		<look name="rock_surface" rgb="0.22 0.18 0.13" roughness="0.98" metalness="0.0"/>
+		<!-- gray=1 保留纹理原色；纹理由新增的 PNG 提供，粗糙度仍由 Stonefish 控制。 -->
+		<look name="sea_urchin" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Tex_SeaUrchin.png" roughness="0.82" metalness="0.0"/>
+		<!-- Rock2/红海胆的 OBJ 均关联同目录 MTL；Stonefish 场景外观仍由下面的 look 显式指定。 -->
+		<look name="rock2_surface" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/Rock2/textures/8b1ab5bc781b40a48fae2331aba07932.jpeg" roughness="0.96" metalness="0.0"/>
+		<look name="red_sea_urchin" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/textures/gltf_embedded_0.png" roughness="0.80" metalness="0.0"/>
+		<look name="rock3_surface" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/Rock3/source/Rock 17_basecolor (4096).jpg" roughness="0.96" metalness="0.0"/>
+		<look name="rock4_surface" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/Rock4/textures/RiverRock_BaseColor.png" roughness="0.94" metalness="0.0"/>
+		<look name="rock5_surface" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/Rock5/textures/sutr_tmave_sedy.jpeg" roughness="0.95" metalness="0.0"/>
+		<look name="purple_sea_urchin" gray="1.0" texture="$(find aquaflow_stonefish)/scenarios/models/PurpleSeaUrchin/textures/PurpleSeaUrchinSkin_Color.png" roughness="0.82" metalness="0.0"/>
+	</looks>
+
+	<!-- 14×8×4 米的基础水池。 -->
+	<static name="PoolFloor" type="box">
+		<dimensions xyz="14.0 8.0 0.2"/>
+		<material name="Rock"/>
+		<look name="pool_floor"/>
+		<world_transform xyz="0.0 0.0 4.1" rpy="0.0 0.0 0.0"/>
+	</static>
+
+	<static name="PoolWallStart" type="box">
+		<dimensions xyz="0.2 8.4 4.0"/>
+		<material name="Rock"/>
+		<look name="pool_wall"/>
+		<world_transform xyz="-7.1 0.0 2.0" rpy="0.0 0.0 0.0"/>
+	</static>
+
+	<static name="PoolWallEnd" type="box">
+		<dimensions xyz="0.2 8.4 4.0"/>
+		<material name="Rock"/>
+		<look name="pool_wall"/>
+		<world_transform xyz="7.1 0.0 2.0" rpy="0.0 0.0 0.0"/>
+	</static>
+
+	<static name="PoolWallLeft" type="box">
+		<dimensions xyz="14.0 0.2 4.0"/>
+		<material name="Rock"/>
+		<look name="pool_wall"/>
+		<world_transform xyz="0.0 -4.1 2.0" rpy="0.0 0.0 0.0"/>
+	</static>
+
+	<static name="PoolWallRight" type="box">
+		<dimensions xyz="14.0 0.2 4.0"/>
+		<material name="Rock"/>
+		<look name="pool_wall"/>
+		<world_transform xyz="0.0 4.1 2.0" rpy="0.0 0.0 0.0"/>
+	</static>
+
+	<!-- 岩石位于 (1.5, 0.0) 附近，水平覆盖范围约为 1.79×1.45 米。 -->
+	<!-- <static name="RockSurface" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/rockFlat/rockFlat.obj" scale="1.0"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock_surface"/>
+		<world_transform xyz="1.5 0.0 3.835" rpy="0.0 0.0 0.0"/>
+	</static> -->
+
+	<!--
+	  第二类岩石 Rock2 的原始尺寸约为 110×55×184，按厘米资产处理，缩放 0.01。
+	  模型局部 Y 为高度轴，绕 X 轴 -pi/2 后使岩石从池底朝世界 -Z 隆起。
+	  平移 z=3.866 后，最低处接近 z=4.0，顶部约为 z=3.45。
+	-->
+	<static name="RockSurface02" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock2/Rock2.obj" scale="0.02"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock2_surface"/>
+		<world_transform xyz="-1.2 1.2 3.866" rpy="0.0 0.0 -0.35"/>
+	</static>
+
+	<!-- Three additional rock types distributed across the free pool area. -->
+	<static name="RockSurface03" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock3/source/rock_17.obj" scale="3.0"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock3_surface"/>
+		<world_transform xyz="1.25 -2 3.922" rpy="0.0 0.0 1.18"/>
+	</static>
+
+	<static name="RockSurface04" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock4/source/Rock4.obj" scale="0.36"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock4_surface"/>
+		<world_transform xyz="-4.25 -1.5 3.922" rpy="0.0 0.0 -0.62"/>
+	</static>
+
+	<static name="RockSurface05" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock2/Rock2.obj" scale="0.02"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock2_surface"/>
+		<world_transform xyz="4.95 -0.5 3.866" rpy="0.0 0.0 -1.57"/>
+	</static>
+
+	<!-- <static name="RockSurface05" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock5/source/Rock5.obj" scale="12.0"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock5_surface"/>
+		<world_transform xyz="2.95 -2.55 4.018" rpy="0.0 0.0 0.73"/>
+	</static> -->
+
+	<static name="RockSurface06" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock3/source/rock_17.obj" scale="3.0"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock3_surface"/>
+		<world_transform xyz="-3.85 2.35 3.840" rpy="0.0 0.0 0"/>
+	</static>
+
+
+	<static name="RockSurface07" type="model">
+		<physical>
+			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock4/source/Rock4.obj" scale="0.36"/>
+			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
+		</physical>
+		<material name="Rock"/>
+		<look name="rock4_surface"/>
+		<world_transform xyz="1.85 1.35 3.840" rpy="0.0 0.0 1.57"/>
+	</static>
+	
+
+	<!--
+	  海胆中心放在 z≈3.61~3.64，底部贴近岩石上表面；各实例采用不同的
+	  x/y 位置和偏航角，避免排列过于规则。scale=0.01 将厘米转换为米。
+	-->
+
+
+
+	<!--
+	  This asset is one mesh containing several purple sea urchins.  It is
+	  placed on RockSurface04; scale 0.045 converts the large source asset to
+	  a cluster roughly 0.67 x 0.57 m in plan.
+	-->
+
+	<!-- A small minority of urchins are placed on the pool floor beside rocks. -->
+
+	<!--
+	  红海胆模型使用米制尺寸，局部 Y 从底部向上；同样绕 X 轴 -pi/2，
+	  使局部 +Y 指向 NED 的 -Z。以下 4 只海胆分布在 RockSurface02 顶部。
+	-->
+
+	<!-- 保留空水池场景中的 BlueROV2 初始位置和朝向。 -->
+
+	<!-- BEGIN AUTO-GENERATED ROCK URCHINS -->
+	<!-- seed=12345; on-rock=26 models (including 2 purple clusters); beside=3. -->
+	<static name="PurpleSeaUrchinOnRock01" type="model">
+		<!-- purple sea-urchin cluster: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/PurpleSeaUrchin/source/PurpleSeaUrchin_Cluster_Med.obj" scale="2"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="purple_sea_urchin"/>
+		<world_transform xyz="-4.2980 -1.4050 3.0993" rpy="0.0 0.0 2.0433"/>
+	</static>
+	<static name="PurpleSeaUrchinOnRock02" type="model">
+		<!-- purple sea-urchin cluster: on RockSurface07. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/PurpleSeaUrchin/source/PurpleSeaUrchin_Cluster_Med.obj" scale="2"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="purple_sea_urchin"/>
+		<world_transform xyz="1.5565 1.5508 2.9484" rpy="0.0 0.0 -0.4214"/>
+	</static>
+	<static name="SeaUrchinOnRock01" type="model">
+		<!-- sea urchin: on RockSurface03. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01937"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="1.3740 -2.3294 3.4130" rpy="0.0 0.0 1.4963"/>
+	</static>
+	<static name="RedSeaUrchinOnRock02" type="model">
+		<!-- red sea urchin: on RockSurface07. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="2.06383"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="1.8590 0.9344 3.2564" rpy="0.0 0.0 1.3758"/>
+	</static>
+	<static name="SeaUrchinOnRock03" type="model">
+		<!-- sea urchin: on RockSurface06. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01714"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-4.0811 2.8739 3.2551" rpy="0.0 0.0 -2.9728"/>
+	</static>
+	<static name="RedSeaUrchinOnRock04" type="model">
+		<!-- red sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.98386"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-3.6818 -2.3177 3.3683" rpy="0.0 0.0 1.7017"/>
+	</static>
+	<static name="SeaUrchinOnRock05" type="model">
+		<!-- sea urchin: on RockSurface06. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01707"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-3.9959 2.1210 3.3293" rpy="0.0 0.0 1.1399"/>
+	</static>
+	<static name="RedSeaUrchinOnRock06" type="model">
+		<!-- red sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.86540"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-4.3581 -1.9662 3.4565" rpy="0.0 0.0 2.3448"/>
+	</static>
+	<static name="SeaUrchinOnRock07" type="model">
+		<!-- sea urchin: on RockSurface06. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01730"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-4.0414 1.9678 3.3591" rpy="0.0 0.0 -0.4167"/>
+	</static>
+	<static name="RedSeaUrchinOnRock08" type="model">
+		<!-- red sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="2.12977"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-3.5070 -2.1455 3.3422" rpy="0.0 0.0 -2.1974"/>
+	</static>
+	<static name="SeaUrchinOnRock09" type="model">
+		<!-- sea urchin: on RockSurface02. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01737"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-1.2151 1.9701 3.0242" rpy="0.0 0.0 -3.0609"/>
+	</static>
+	<static name="RedSeaUrchinOnRock10" type="model">
+		<!-- red sea urchin: on RockSurface02. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.82192"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-0.2999 1.5656 3.1414" rpy="0.0 0.0 2.6425"/>
+	</static>
+	<static name="SeaUrchinOnRock11" type="model">
+		<!-- sea urchin: on RockSurface05. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.02073"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="5.7893 -0.0439 3.0460" rpy="0.0 0.0 1.6415"/>
+	</static>
+	<static name="RedSeaUrchinOnRock12" type="model">
+		<!-- red sea urchin: on RockSurface07. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.97308"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="2.2367 1.3734 3.2086" rpy="0.0 0.0 2.3898"/>
+	</static>
+	<static name="SeaUrchinOnRock13" type="model">
+		<!-- sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01981"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-4.8716 -1.3627 3.5637" rpy="0.0 0.0 3.0016"/>
+	</static>
+	<static name="RedSeaUrchinOnRock14" type="model">
+		<!-- red sea urchin: on RockSurface03. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.90228"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="1.1608 -1.6442 3.4150" rpy="0.0 0.0 0.0264"/>
+	</static>
+	<static name="SeaUrchinOnRock15" type="model">
+		<!-- sea urchin: on RockSurface02. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.02177"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-0.6145 1.0874 2.9623" rpy="0.0 0.0 0.5557"/>
+	</static>
+	<static name="RedSeaUrchinOnRock16" type="model">
+		<!-- red sea urchin: on RockSurface06. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.91713"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-4.3488 2.5006 3.4104" rpy="0.0 0.0 -0.8058"/>
+	</static>
+	<static name="SeaUrchinOnRock17" type="model">
+		<!-- sea urchin: on RockSurface03. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01616"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="0.5157 -2.1590 3.4435" rpy="0.0 0.0 0.9929"/>
+	</static>
+	<static name="RedSeaUrchinOnRock18" type="model">
+		<!-- red sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.80613"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-3.9941 -1.9775 3.3061" rpy="0.0 0.0 2.3927"/>
+	</static>
+	<static name="SeaUrchinOnRock19" type="model">
+		<!-- sea urchin: on RockSurface03. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.02066"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="1.5174 -2.5276 3.4626" rpy="0.0 0.0 1.3855"/>
+	</static>
+	<static name="RedSeaUrchinOnRock20" type="model">
+		<!-- red sea urchin: on RockSurface06. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.80855"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-3.3277 1.9240 3.4203" rpy="0.0 0.0 -1.8748"/>
+	</static>
+	<static name="SeaUrchinOnRock21" type="model">
+		<!-- sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01975"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-4.9355 -1.4780 3.4286" rpy="0.0 0.0 -0.9162"/>
+	</static>
+	<static name="RedSeaUrchinOnRock22" type="model">
+		<!-- red sea urchin: on RockSurface02. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="2.04865"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-1.7950 1.4329 3.2784" rpy="0.0 0.0 1.6656"/>
+	</static>
+	<static name="SeaUrchinOnRock23" type="model">
+		<!-- sea urchin: on RockSurface04. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.02118"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="-3.8877 -1.8657 3.2012" rpy="0.0 0.0 -0.5314"/>
+	</static>
+	<static name="RedSeaUrchinOnRock24" type="model">
+		<!-- red sea urchin: on RockSurface02. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="2.12922"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="-1.0413 1.4327 3.0727" rpy="0.0 0.0 1.3029"/>
+	</static>
+	<static name="SeaUrchinBesideRock01" type="model">
+		<!-- sea urchin: beside RockSurface03. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.02012"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="1.2850 -3.1957 3.9213" rpy="0.0 0.0 -2.3552"/>
+	</static>
+	<static name="RedSeaUrchinBesideRock02" type="model">
+		<!-- red sea urchin: beside RockSurface05. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/RedSeaUrchin/RedSeaUrchin.obj" scale="1.82309"/><origin xyz="0 0 0" rpy="-1.5707963268 0 0"/></physical>
+		<material name="Neutral"/><look name="red_sea_urchin"/>
+		<world_transform xyz="4.1064 -1.8125 4.0000" rpy="0.0 0.0 -1.0238"/>
+	</static>
+	<static name="SeaUrchinBesideRock03" type="model">
+		<!-- sea urchin: beside RockSurface07. -->
+		<physical><mesh filename="$(find aquaflow_stonefish)/scenarios/models/SeaUrchin/Mesh_SeaUrchin.obj" scale="0.01953"/><origin xyz="0 0 0" rpy="3.1415926536 0 0"/></physical>
+		<material name="Neutral"/><look name="sea_urchin"/>
+		<world_transform xyz="1.0542 0.2188 3.9236" rpy="0.0 0.0 2.8236"/>
+	</static>
+	<!-- END AUTO-GENERATED ROCK URCHINS -->
+	<!-- <include file="$(find aquaflow_stonefish)/scenarios/bluerov2_reference.scn">
+		<arg name="vehicle_name" value="bluerov2"/>
+		<arg name="position" value="-5.0 0.0 0.0"/>
+		<arg name="orientation" value="0.0 0.0 0.0"/>
+	</include> -->
+		<include file="$(find aquaflow_stonefish)/scenarios/bricsbot_reference.scn">
+		<arg name="vehicle_name" value="bricsbot"/>
+		<arg name="position" value="-5.0 0.0 3.0"/>
+		<arg name="orientation" value="0.0 0.0 0.0"/>
+	</include>
+</scenario>

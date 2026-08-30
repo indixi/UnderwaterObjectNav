@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- scene settings -->
+  <arg name="scene" default="empty_pool"/>
+  
+  <!-- robot settings -->
+  <arg name="enable" default="false"
+       doc="Set true only after checking the scene and low-amplitude command path."/>
+  <arg name="vehicle_name" default="bricsbot"/>
+  <arg name="vehicle_model" default="bricsbot"
+       doc="bluerov2 uses 8-thruster allocator; bricsbot uses the measured 6-thruster allocator."/>
+
+  <!-- controller/reference settings -->
+  <arg name="start_reference" default="true"
+       doc="Start the nominal reference publisher. Set false when using robot_control reference_tuning_publisher."/>
+  <arg name="trajectory_type" default="line"
+        doc="Nominal trajectory: line or figure_eight"/>
+  <arg name="reference_topic" default="/aquaflow/nominal_pose"
+       doc="Tracking reference: nominal PoseStamped"/>
+  <arg name="reference_mode" default="position"
+       doc="position uses Path outer loop; velocity uses TwistStamped directly."/>
+  <arg name="velocity_reference_topic" default="/robot_control/reference_velocity"/>
+
+
+
+  <!-- scene begin -->
+  <include file="$(find aquaflow_stonefish)/launch/rock_seaurchin.launch">
+    <arg name="scene" value="$(arg scene)"/>
+    <arg name="vehicle_model" value="$(arg vehicle_model)"/>
+  </include>
+
+  <!-- <node pkg="aquaflow_stonefish" type="nominal_reference_publisher.py"
+        name="nominal_reference_publisher" output="screen">
+    <param name="trajectory_type" value="$(arg trajectory_type)"/>
+  </node> -->
+
+
+  <!-- <node if="$(eval arg('start_reference'))"
+        pkg="robot_control" type="reference_tuning_publisher.py"
+        name="reference_tuning_publisher" output="screen">
+    <rosparam command="load"
+          file="$(find robot_control)/config/reference_tuning.yaml"/>
+    <param name="reference_tuning_publisher/trajectory/type"
+         value="$(arg trajectory_type)"/>
+    <param name="reference_tuning_publisher/pose_topic"
+           value="$(arg reference_topic)"/>
+  </node> -->
+  <node pkg="robot_control"
+        type="keyboard_reference_publisher.py"
+        name="keyboard_reference_publisher"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/keyboard_reference.yaml"/>
+  </node>
+
+  <node pkg="robot_control"
+        type="cascaded_pid_tracker.py"
+        name="cascaded_pid_tracker"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/bricsbot_cascade_pid.yaml"/>
+    <param name="reference_mode" value="$(arg reference_mode)"/>
+    <!-- <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="reference_topic" value="$(arg reference_topic)"/>
+    <param name="reference_mode" value="$(arg reference_mode)"/>
+    <param name="velocity_reference_topic" value="$(arg velocity_reference_topic)"/> -->
+  </node>
+
+  <node if="$(eval arg('vehicle_model') == 'bluerov2')"
+        pkg="aquaflow_stonefish" type="blue8_thruster_allocator.py"
+        name="blue8_thruster_allocator" output="screen">
+    <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="enabled" value="$(arg enable)"/>
+  </node>
+  <node if="$(eval arg('vehicle_model') == 'bricsbot')"
+        pkg="aquaflow_stonefish" type="brics6_thruster_allocator.py"
+        name="brics6_thruster_allocator" output="screen">
+    <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="enabled" value="$(arg enable)"/>
+  </node>
+</launch>

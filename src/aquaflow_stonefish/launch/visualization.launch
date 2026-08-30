@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="vehicle_model" default="bricsbot"/>
+  <arg name="robot_description_file"
+       default="$(eval {'bluerov2': 'data/bluerov2.urdf', 'bricsbot': 'data/bricsbot/bricsbot.urdf'}[arg('vehicle_model')])"/>
+  <arg name="rviz_config"
+       default="$(eval {'bluerov2': 'rviz/aquaflow_tracking.rviz', 'bricsbot': 'rviz/aquaflow_bricsbot_tracking.rviz'}[arg('vehicle_model')])"/>
+  <arg name="enable_depth_camera" default="true"
+       doc="Publish the BricsBot depth-camera TF for RViz image display."/>
+  <arg name="enable_rgb_camera" default="true"
+       doc="Publish the BricsBot RGB-camera TF for RViz image display."/>
+  <!-- RobotModel in the chosen RViz profile reads this global description. -->
+  <param name="robot_description"
+         textfile="$(find aquaflow_stonefish)/$(arg robot_description_file)"/>
+  <node pkg="tf" type="static_transform_publisher"
+        name="bricsbot_depth_camera_tf" output="screen"
+        args="0.20 0.0 -0.02 1.5707963268 0.0 1.5707963268 bricsbot/base_link bricsbot/depth_camera 100"/>
+  <node pkg="tf" type="static_transform_publisher"
+        name="bricsbot_rgb_camera_tf" output="screen"
+        args="0.20 0.0 -0.02 1.5707963268 0.0 1.5707963268 bricsbot/base_link bricsbot/rgb_camera 100"/>
+  <node pkg="rviz" type="rviz" name="aquaflow_rviz" output="screen"
+        args="-d $(find aquaflow_stonefish)/$(arg rviz_config)"/>
+</launch>

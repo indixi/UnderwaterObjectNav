@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="vehicle_name" default="bricsbot"/>
+  <arg name="reference_topic" default="/aquaflow/nominal_pose"/>
+  <arg name="reference_mode" default="position"
+       doc="position uses PoseStamped outer loop; velocity uses TwistStamped directly."/>
+  <arg name="velocity_reference_topic" default="/robot_control/reference_velocity"/>
+
+  <node pkg="robot_control"
+        type="cascaded_pid_tracker.py"
+        name="cascaded_pid_tracker"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/bricsbot_cascade_pid.yaml"/>
+    <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="reference_topic" value="$(arg reference_topic)"/>
+    <param name="reference_mode" value="$(arg reference_mode)"/>
+    <param name="velocity_reference_topic" value="$(arg velocity_reference_topic)"/>
+  </node>
+</launch>

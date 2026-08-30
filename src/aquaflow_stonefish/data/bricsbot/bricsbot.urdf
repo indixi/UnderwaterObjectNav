@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<robot name="bricsbot">
+  <link name="base_link">
+    <visual>
+      <!-- The source mesh has +X forward and +Y up.  RViz uses the same
+           world_ned/body convention as the Stonefish TF here (+Z down), so
+           map mesh +Y to body -Z with one -90 degree roll. -->
+      <origin xyz="-0.0008 0.0 -0.0020"
+              rpy="-1.5707963267948966 0 -1.5707963267948966"/>
+      <geometry>
+        <mesh filename="package://aquaflow_stonefish/data/bricsbot/bot_shark_stonefish.obj" scale="1 1 1"/>
+      </geometry>
+    </visual>
+  </link>
+    <!-- The image frame is published by the visualization launch.  Keeping it
+       in the URDF documents the sensor frame and matches the Stonefish
+       sensor origin. -->
+  <link name="depth_camera"/>
+  <joint name="depth_camera_mount" type="fixed">
+      <parent link="base_link"/>
+      <child link="depth_camera"/>
+      <origin xyz="0.20 0.0 -0.02" rpy="1.5707963268 0 1.5707963268"/>
+  </joint>
+
+  <link name="rgb_camera"/>
+  <joint name="rgb_camera_mount" type="fixed">
+    <parent link="base_link"/>
+    <child link="rgb_camera"/>
+    <origin xyz="0.20 0.0 -0.02" rpy="1.5707963268 0.0 1.5707963268"/>
+  </joint>
+</robot>

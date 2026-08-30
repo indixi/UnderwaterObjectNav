@@ -1,0 +1,75 @@
+
+
+cascaded_pid_tracker:
+  rate_hz: 50.0
+  vehicle_name: bricsbot
+
+  position_loop:
+    kp_xy: [2, 2]
+    ki_xy: [0.0, 0.0]
+    kp_z: 10.0
+    ki_z: 0.0
+    kp_yaw: 0.8
+    ki_yaw: 0.0
+    integral_limit_xy: [1.0, 1.0]
+    integral_limit_z: 1.0
+    integral_limit_yaw: 1.0
+    max_velocity_xy: [1, 1]
+    max_velocity_z: 0.5
+    max_yaw_rate: 0.5
+
+  velocity_loop:
+    kp_xy: [500.0, 500.0]
+    ki_xy: [0.0, 0.0]
+    kd_xy: [0.5, 0.5]
+    kp_z: 100.0
+    ki_z: 0.0
+    kd_z: 0.5
+    kp_yaw: 20
+    ki_yaw: 0.0
+    kd_yaw: 0.05
+    integral_limit_xy: [1.0, 1.0]
+    integral_limit_z: 1.0
+    integral_limit_yaw: 1.0
+    derivative_filter_hz: 8.0
+    max_force_xy: [80.0, 80.0]
+    max_force_z: 60.0
+    max_torque_z: 5
+
+  # velocity_loop:
+  #   kp_xy: [500.0, 500.0]
+  #   ki_xy: [0.0, 0.0]
+  #   kd_xy: [0.5, 0.5]
+  #   kp_z: 300.0
+  #   ki_z: 0.0
+  #   kd_z: 0.5
+  #   kp_yaw: 20
+  #   ki_yaw: 0.0
+  #   kd_yaw: 0.05
+  #   integral_limit_xy: [1.0, 1.0]
+  #   integral_limit_z: 1.0
+  #   integral_limit_yaw: 1.0
+  #   derivative_filter_hz: 8.0
+  #   max_force_xy: [120.0, 120.0]
+  #   max_force_z: 80.0
+  #   max_torque_z: 5
+
+  reference:
+    mode: position
+    topic: /aquaflow/nominal_pose
+    velocity_topic: /robot_control/reference_velocity
+    frame_id: world_ned
+
+  safety:
+    odom_timeout_s: 0.25
+    reference_timeout_s: 0.50
+    max_state_age_s: 0.25
+    future_stamp_tolerance_s: 0.02
+    dt_min_s: 0.001
+    dt_max_s: 0.20
+    zero_command_on_shutdown: true
+
+  time_sync:
+    clock_timeout_s: 1.0
+    reset_integrator_on_time_jump: true
+
