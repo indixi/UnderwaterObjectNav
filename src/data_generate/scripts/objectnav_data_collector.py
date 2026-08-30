@@ -197,22 +197,11 @@ class ObjectNavDataCollector:
             if not self.active:
                 rospy.logwarn("当前没有活动 Episode，动作 %s 未记录", action)
                 return
-            if self.latest is None:
-                rospy.logwarn("尚未收到 RGB、Depth、Pose 同步数据，动作未记录")
-                return
-            if (rospy.Time.now() - self.latest[3]).to_sec() > self.max_age:
-                rospy.logwarn("同步观测已过期，动作 %s 未记录", action)
-                return
             if action != "STOP" and self.latest_reference is None:
                 rospy.logwarn("尚未收到 robot_control 的目标位姿，动作 %s 未记录", action)
                 return
-            try:
-                self.save_step(action, self.latest)
-            except (CvBridgeError, IOError, OSError, ValueError) as exc:
-                rospy.logerr("保存 step 失败，动作不会执行：%s", exc)
-                return
-            # 直接使用 robot_control 键盘发布器的目标，保证 CSV 标签与
-            # 实际控制器使用的距离和转角完全一致。动作先入队，避免丢失。
+            # 目标和动作先入队；只有前一个动作完成后，动作真正开始时
+            # 才保存观测，保证数据与实际执行时刻一致。
             target = self.latest_reference
             self.pending_actions.append((action, target))
             self.start_next_action()
@@ -222,15 +211,30 @@ class ObjectNavDataCollector:
         if self.executing_action is not None or not self.pending_actions:
             return
         action, target = self.pending_actions.popleft()
+        if action != "STOP" and target is None:
+            rospy.logwarn("动作 %s 缺少目标位姿，跳过执行", action)
+            self.start_next_action()
+            return
+        if self.latest is None or \
+                (rospy.Time.now() - self.latest[3]).to_sec() > self.max_age:
+            rospy.logwarn("动作 %s 开始时没有新鲜观测，跳过该动作", action)
+            self.start_next_action()
+            return
         if action == "STOP":
             self.publish_status("STOP_RECORDED")
+            try:
+                self.save_step(action, self.latest)
+            except (CvBridgeError, IOError, OSError, ValueError) as exc:
+                rospy.logerr("保存 STOP step 失败：%s", exc)
             if self.auto_end_on_stop:
                 self.finish_episode(True, None)
             else:
                 self.start_next_action()
             return
-        if target is None:
-            rospy.logwarn("动作 %s 缺少目标位姿，跳过执行", action)
+        try:
+            self.save_step(action, self.latest)
+        except (CvBridgeError, IOError, OSError, ValueError) as exc:
+            rospy.logerr("保存 step 失败，动作不会执行：%s", exc)
             self.start_next_action()
             return
         self.action_target = target

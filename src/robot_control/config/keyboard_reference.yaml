@@ -4,6 +4,8 @@ keyboard_reference_publisher:
   odom_topic: /bricsbot/odometry
   reference_topic: /aquaflow/nominal_pose
   action_topic: /underwater_objectnav/expert_action
+  status_topic: /underwater_objectnav/collector_status
+  wait_for_collector_completion: true
   frame_id: world_ned
   publish_rate_hz: 20.0
 

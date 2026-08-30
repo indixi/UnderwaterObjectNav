@@ -41,6 +41,10 @@ class KeyboardReferencePublisher:
             root + "reference_topic", "/aquaflow/nominal_pose")
         self.action_topic = rospy.get_param(
             root + "action_topic", "/underwater_objectnav/expert_action")
+        self.status_topic = rospy.get_param(
+            root + "status_topic", "/underwater_objectnav/collector_status")
+        self.wait_for_completion = bool(rospy.get_param(
+            root + "wait_for_collector_completion", True))
         self.frame_id = rospy.get_param(root + "frame_id", "world_ned")
         self.publish_rate_hz = max(
             1.0, float(rospy.get_param(root + "publish_rate_hz", 20.0)))
@@ -64,18 +68,26 @@ class KeyboardReferencePublisher:
         self.pending_commands = deque()
         self.has_scheduled_command = False
         self.last_scheduled_time = None
+        self.collector_status = None
+        self.awaiting_completion = False
         self.reference_pub = rospy.Publisher(
             self.reference_topic, PoseStamped, queue_size=1)
         self.action_pub = rospy.Publisher(
             self.action_topic, String, queue_size=10)
         rospy.Subscriber(self.odom_topic, Odometry,
                          self.odom_cb, queue_size=1)
+        rospy.Subscriber(self.status_topic, String, self.status_cb, queue_size=1)
         self.timer = rospy.Timer(
             rospy.Duration(1.0 / self.publish_rate_hz), self.publish)
         rospy.on_shutdown(self.shutdown)
 
     def odom_cb(self, msg):
         self.odom = msg
+
+    def status_cb(self, msg):
+        self.collector_status = msg.data.strip().upper()
+        if self.collector_status == "READY_FOR_NEXT_STEP":
+            self.awaiting_completion = False
 
     def current_pose(self):
         if self.odom is None:
@@ -152,7 +164,24 @@ class KeyboardReferencePublisher:
 
     def publish(self, _event):
         now = rospy.Time.now()
-        # 到达动作的计划时间后，成对发布目标位姿和动作标签。
+        # 只有计划时间到达且上一个动作完成后，才发布下一个动作。
+        if not self.pending_commands or self.pending_commands[0][0] > now:
+            if self.target is not None:
+                self.target.header.stamp = now
+                self.reference_pub.publish(self.target)
+            return
+        if self.wait_for_completion and self.awaiting_completion:
+            if self.target is not None:
+                self.target.header.stamp = now
+                self.reference_pub.publish(self.target)
+            return
+        if self.wait_for_completion and self.collector_status not in (
+                "RECORDING", "READY_FOR_NEXT_STEP"):
+            rospy.logwarn_throttle(
+                5.0, "waiting for an active data-collection episode before publishing keyboard actions")
+            return
+
+        # 每次定时器回调最多发布一个动作，避免延迟后一次性发布多个动作。
         while self.pending_commands and self.pending_commands[0][0] <= now:
             _, action = self.pending_commands.popleft()
             current = self.current_pose()
@@ -165,12 +194,15 @@ class KeyboardReferencePublisher:
             self.target.header.stamp = now
             self.reference_pub.publish(self.target)
             self.action_pub.publish(String(data=action))
+            self.awaiting_completion = (
+                self.wait_for_completion and action != "STOP")
             rospy.loginfo(
                 "执行延迟键盘动作：%s，target=(x=%.3f,y=%.3f,z=%.3f,yaw=%.3f)，剩余队列=%d",
                 action, self.target.pose.position.x, self.target.pose.position.y,
                 self.target.pose.position.z,
                 yaw_from_quat(self.target.pose.orientation),
                 len(self.pending_commands))
+            break
         if self.target is None:
             return
         self.target.header.stamp = now

@@ -8,10 +8,10 @@ expert_action_topic: /underwater_objectnav/expert_action
 status_topic: /underwater_objectnav/collector_status
 
 dataset_root: ""
-sync_queue_size: 20
+sync_queue_size: 20 #RGB、Depth、Odometry 同步缓存队列的长度
 sync_slop_s: 0.08
-max_observation_age_s: 0.25
-forward_position_tolerance_m: 0.035
+max_observation_age_s: 0.25 #动作到达时，最近一组 RGB、Depth、Odometry 最大允许延迟
+forward_position_tolerance_m: 0.05
 turn_angle_tolerance_deg: 3.0
 action_timeout_s: 15.0
-auto_end_on_stop: false
+auto_end_on_stop: true  #记录 STOP，并自动结束 Episode，标记为成功
