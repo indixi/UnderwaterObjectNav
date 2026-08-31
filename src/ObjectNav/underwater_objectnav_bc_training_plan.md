@@ -185,7 +185,7 @@ C = 7
 ```yaml
 map_width_m: 10.0
 map_height_m: 10.0
-map_resolution_m: 0.05
+map_resolution_m: 0.5
 ```
 
 ---

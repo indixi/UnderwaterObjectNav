@@ -1,0 +1,21 @@
+dataset:
+  map_channels: 7
+  map_width_m: 10.0
+  map_height_m: 10.0
+  map_resolution_m: 0.5
+  origin_x: -5.0
+  origin_y: -5.0
+  split_by: episode
+  train_ratio: 0.70
+  validation_ratio: 0.15
+  test_ratio: 0.15
+model:
+  map_feature_dim: 256
+  goal_embedding_dim: 8
+  num_actions: 4
+training:
+  batch_size: 32
+  learning_rate: 0.0003
+  weight_decay: 0.00001
+  epochs: 30
+  seed: 42

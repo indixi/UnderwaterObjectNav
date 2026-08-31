@@ -190,6 +190,9 @@ class ActionExecutor:
         self.current_request = None
         self.current_target = None
         self.start_time = None
+        # 当前动作完成后，立即尝试启动下一个动作；如果其计划时间
+        # 尚未到达，start_next() 会直接返回，等待后续定时器回调。
+        self.start_next(now)
 
     def update(self, _event):
         now = rospy.Time.now()
