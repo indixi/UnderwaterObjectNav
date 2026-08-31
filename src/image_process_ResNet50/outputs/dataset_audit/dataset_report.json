@@ -1,0 +1,47 @@
+{
+  "data_root": "/home/yzw/work_khd/image_process/duo_gfl_project/data/DUO",
+  "splits": {
+    "train": {
+      "images": 6671,
+      "annotations": 63998,
+      "instances_per_class": {
+        "holothurian": 6808,
+        "starfish": 12528,
+        "echinus": 42955,
+        "scallop": 1707
+      },
+      "empty_images": 54,
+      "missing_images": [],
+      "corrupt_images": [],
+      "issues": {
+        "out_of_bounds": 847
+      },
+      "area": {
+        "min": 130,
+        "max": 1827826,
+        "mean": 16523.541860683148
+      }
+    },
+    "test": {
+      "images": 1111,
+      "annotations": 10517,
+      "instances_per_class": {
+        "echinus": 7201,
+        "starfish": 2020,
+        "holothurian": 1079,
+        "scallop": 217
+      },
+      "empty_images": 11,
+      "missing_images": [],
+      "corrupt_images": [],
+      "issues": {
+        "out_of_bounds": 106
+      },
+      "area": {
+        "min": 260,
+        "max": 1152515,
+        "mean": 17868.53171056385
+      }
+    }
+  }
+}

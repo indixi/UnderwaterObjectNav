@@ -1,0 +1,13 @@
+# 请勿直接单独安装本文件：先运行 scripts/install_ubuntu2004.sh 安装
+# 带 CUDA 12.1 的 PyTorch 和对应的 MMCV 预编译 wheel。
+#
+# MMEngine 是 OpenMMLab 的训练运行时；0.10.7 与 MMDetection 3.3.0 兼容。
+mmengine==0.10.7
+# 本项目的 GFL 模型、COCO 数据集和评估器由 MMDetection 提供。
+mmdet==3.3.0
+# COCO JSON 标注读取及 mAP/AP50/AP75 等指标计算。
+pycocotools==2.0.7
+# 图像读写依赖。限制主版本可降低旧版 OpenMMLab 的兼容风险。
+Pillow>=10.0,<12
+# PyTorch 2.1 和部分二进制扩展发布早于 NumPy 2，固定在 NumPy 1.x。
+numpy>=1.24,<2
