@@ -121,7 +121,7 @@
          and CameraInfo through stonefish_ros.  The sensor name is prefixed
          by the robot name, producing frame_id bricsbot/depth_camera. -->
     <sensor name="depth_camera" rate="15.0" type="depthcamera">
-      <specs resolution_x="320" resolution_y="240" horizontal_fov="70.0"
+      <specs resolution_x="640" resolution_y="480" horizontal_fov="70.0"
              depth_min="0.2" depth_max="10.0"/>
       <noise depth="0.02"/>
       <origin xyz="0.20 0.0 -0.02" rpy="1.5707963268 0.0 1.5707963268"/>
@@ -132,7 +132,7 @@
     <!-- Forward-facing RGB camera. Stonefish ROS publishes its color image
          on /$(arg vehicle_name)/rgb/image_color. -->
     <sensor name="rgb_camera" rate="15.0" type="camera">
-      <specs resolution_x="320" resolution_y="240" horizontal_fov="70.0"/>
+      <specs resolution_x="640" resolution_y="480" horizontal_fov="70.0"/>
       <origin xyz="0.20 0.0 -0.02" rpy="1.5707963268 0.0 1.5707963268"/>
       <link name="base_link"/>
       <ros_publisher topic="/$(arg vehicle_name)/rgb"/>
