@@ -26,7 +26,7 @@
 
   <arg name="dataset_root" default="$(find data_generate)/underwater_objectnav_dataset"/>
 
-  <arg name="command_delay_s" default="3.0"
+  <arg name="command_delay_s" default="2.5"
        doc="键盘动作发布前的延迟时间，单位为秒"/>
 
 

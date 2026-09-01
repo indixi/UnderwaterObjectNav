@@ -10,7 +10,7 @@ action_executor:
   command_delay_s: 5.0
   initial_command_delay_s: 0.0
   forward_distance_m: 0.5
-  turn_angle_deg: 30.0
+  turn_angle_deg: -30.0 #由于z轴朝下，这里右转其实是-30.0度
   odom_timeout_s: 0.25
   forward_position_tolerance_m: 0.035
   turn_angle_tolerance_deg: 3.0
