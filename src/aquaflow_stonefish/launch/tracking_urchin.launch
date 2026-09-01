@@ -1,9 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-
   <!-- scene settings -->
   <arg name="scene" default="empty_pool"/>
-  
+
   <!-- robot settings -->
   <arg name="enable" default="false"
        doc="Set true only after checking the scene and low-amplitude command path."/>
@@ -15,21 +14,18 @@
   <arg name="start_reference" default="true"
        doc="Start the nominal reference publisher. Set false when using robot_control reference_tuning_publisher."/>
   <arg name="trajectory_type" default="line"
-        doc="Nominal trajectory: line or figure_eight"/>
+       doc="Nominal trajectory: line or figure_eight"/>
   <arg name="reference_topic" default="/aquaflow/nominal_pose"
        doc="Tracking reference: nominal PoseStamped"/>
   <arg name="reference_mode" default="position"
        doc="position uses Path outer loop; velocity uses TwistStamped directly."/>
   <arg name="velocity_reference_topic" default="/robot_control/reference_velocity"/>
 
-
-
   <arg name="dataset_root" default="$(find data_generate)/underwater_objectnav_dataset"/>
-
+  <arg name="target_z" default="2.0"
+       doc="Depth target in world_ned metres; positive z points down."/>
   <arg name="command_delay_s" default="2.5"
-       doc="键盘动作发布前的延迟时间，单位为秒"/>
-
-
+       doc="Delay between scheduled keyboard actions, in seconds."/>
 
   <!-- scene begin -->
   <include file="$(find aquaflow_stonefish)/launch/rock_seaurchin.launch">
@@ -44,14 +40,13 @@
     <param name="trajectory_type" value="$(arg trajectory_type)"/>
   </node> -->
 
-
   <!-- <node if="$(eval arg('start_reference'))"
         pkg="robot_control" type="reference_tuning_publisher.py"
         name="reference_tuning_publisher" output="screen">
     <rosparam command="load"
           file="$(find robot_control)/config/reference_tuning.yaml"/>
     <param name="reference_tuning_publisher/trajectory/type"
-         value="$(arg trajectory_type)"/>
+           value="$(arg trajectory_type)"/>
     <param name="reference_tuning_publisher/pose_topic"
            value="$(arg reference_topic)"/>
   </node> -->
@@ -78,6 +73,7 @@
               file="$(find robot_control)/config/action_executor.yaml"/>
     <param name="action_executor/command_delay_s"
            value="$(arg command_delay_s)"/>
+    <param name="action_executor/target_z" value="$(arg target_z)"/>
   </node>
 
   <node pkg="robot_control"
