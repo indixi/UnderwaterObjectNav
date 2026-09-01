@@ -232,7 +232,9 @@ def update_scenario(scenario: Path, generated: str):
 
 
 def main():
-    package_dir = Path(__file__).resolve().parents[1]
+    # The script is in <package>/scripts/scn_generate; move up to the
+    # aquaflow_stonefish package directory before resolving scenario assets.
+    package_dir = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", type=Path, default=package_dir / "scenarios" / "Rock_SeaUrchin.scn")
     parser.add_argument("--seed", type=int, default=20260819)
