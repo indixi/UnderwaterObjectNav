@@ -9,6 +9,22 @@ dataset:
   train_ratio: 0.70
   validation_ratio: 0.15
   test_ratio: 0.15
+
+# 图像检测模型设置。config_path 和 checkpoint_path 的相对路径都以本
+# bc.yaml 所在目录为基准。训练好 GFL 权重后，确认 checkpoint 文件名，
+# 再把 enabled 改为 true；后续更换模型只需要修改这里。
+perception:
+  detector:
+    enabled: false
+    config_path: "../../../image_process_ResNet50/configs/gfl_r50_fpn_duo_base.py"
+    checkpoint_path: "../../../image_process_ResNet50/work_dirs/gfl_r50_fpn_duo/best_checkpoint.pth"
+    score_threshold: 0.30
+    classes:
+      - holothurian
+      - echinus
+      - scallop
+      - starfish
+
 model:
   map_feature_dim: 256
   goal_embedding_dim: 8

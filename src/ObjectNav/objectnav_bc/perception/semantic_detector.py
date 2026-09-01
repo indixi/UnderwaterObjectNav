@@ -1,4 +1,4 @@
-"""Adapter between the existing DUO GFL detector and semantic mapping.
+"""连接 image_process_ResNet50 的 DUO GFL 检测器与语义地图。
 
 The mapper only depends on ``detect(image)``; importing MMDetection is lazy so
 dataset preparation and policy unit tests work without a GPU environment.
@@ -17,10 +17,10 @@ class Detection:
 
 
 class MMDetSemanticDetector:
-    """将 duo_gfl_project 的 MMDetection 推理器封装为统一 detect 接口。"""
+    """将 MMDetection 推理器封装为语义地图需要的统一 detect 接口。"""
     #config是配置文件，也就是介绍网络结构，checkpoint是权重文件，score_threshold是置信度阈值，target_classes是目标类别
     def __init__(self, config: str, checkpoint: str, score_threshold: float = 0.30,
-                 target_classes: tuple[str, ...] = ("echinus", "holothurian", "scallop", "starfish")):
+                 target_classes: tuple[str, ...] = ("holothurian", "echinus", "scallop", "starfish")):
         # 延迟导入：没有安装 MMDetection 时，仍可使用无检测器的基础地图流程。
         from mmdet.apis import DetInferencer
         self.inferencer = DetInferencer(model=config, weights=checkpoint)   #创建MMDetection推理器对象，使用指定的配置文件和权重文件
@@ -40,7 +40,7 @@ class MMDetSemanticDetector:
 
 
 class JsonDetectionDetector:
-    """读取 duo_gfl_project/tools/infer.py 生成的缓存 JSON，避免重复推理。也就是一个图片已经推理过了，就不需要再推理了，直接读取缓存的结果。"""
+    """读取 image_process_ResNet50/tools/infer.py 生成的缓存 JSON。"""
     def __init__(self, records: dict, score_threshold: float = 0.30):   #records是一个字典，存储了图像路径和对应的检测结果，score_threshold是置信度阈值
         self.records, self.score_threshold = records, score_threshold
 

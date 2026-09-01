@@ -22,14 +22,27 @@ from PIL import Image
 CLASSES = ('holothurian', 'echinus', 'scallop', 'starfish')
 
 
+# Only these fields are aligned one-to-one with detections and should be
+# filtered when selecting target classes. Image-level metadata such as
+# image_size must remain unchanged even when its list length happens to match
+# the number of detections.
+PER_DETECTION_KEYS = frozenset({
+    'boxes_xyxy',
+    'scores',
+    'labels',
+    'class_names',
+    'boxes_cxcywh_normalized',
+})
+
+
 def serialize(sample, image_path: Path, threshold: float):
-    """把 MMDetection 的预测结果转成普通 Python 字典。
+    """把 MMDetection 的预测结果转成普通 Python 字典。不做推理，而是推理完成了
 
     sample.pred_instances 里包含模型预测出的 bboxes、scores、labels。
     这些数据一开始可能在 GPU 上，所以先 .cpu() 移到 CPU，再转成 list，
     这样 json.dumps 才能保存。
     """
-    pred = sample.pred_instances.cpu()
+    pred = sample.pred_instances.cpu()  #取出预测结果的实例预测，并将其从GPU tensor移动到 CPU tensor上
 
     # 只保留置信度大于阈值的检测结果。
     keep = pred.scores >= threshold
@@ -69,15 +82,15 @@ def filter_target(result, target_class='echinus', score_threshold=.3):
     result 里的某些字段是“每个检测框一个值”的列表，例如 scores、boxes；
     这些字段需要按 ids 过滤。image、image_size 不是逐框字段，原样保留。
     """
+    target_classes = {target_class} if isinstance(target_class, str) else set(target_class)
     ids = [
         i for i, (name, score) in enumerate(zip(result['class_names'], result['scores']))
-        if name == target_class and score >= score_threshold
+        if name in target_classes and score >= score_threshold
     ]
 
     filtered = {}
     for key, value in result.items():
-        is_per_detection_list = isinstance(value, list) and len(value) == len(result['scores'])
-        filtered[key] = [value[i] for i in ids] if is_per_detection_list else value
+        filtered[key] = [value[i] for i in ids] if key in PER_DETECTION_KEYS else value
     return filtered
 
 
@@ -88,8 +101,16 @@ def main():
     parser.add_argument('--input', required=True)
     parser.add_argument('--output', default='outputs/inference')
     parser.add_argument('--score-thr', type=float, default=.3)
+    parser.add_argument(
+        '--target-class', nargs='+', metavar='CLASS',
+        help='只保留指定类别，可同时指定多个类别；不指定则保留全部类别',
+    )
+    # 保留旧参数，避免已有脚本失效；新用法推荐使用 --target-class echinus。
     parser.add_argument('--echinus-only', action='store_true')
     args = parser.parse_args()
+
+    if args.echinus_only and args.target_class:
+        parser.error('--echinus-only 与 --target-class 不能同时使用')
 
     from mmdet.apis import DetInferencer
 
@@ -118,7 +139,13 @@ def main():
             return_datasamples=True,
         )
         record = serialize(result['predictions'][0], path, args.score_thr)
-        records.append(filter_target(record) if args.echinus_only else record)
+        target_classes = args.target_class
+        if args.echinus_only:
+            target_classes = ['echinus']
+        records.append(
+            filter_target(record, target_class=target_classes, score_threshold=args.score_thr)
+            if target_classes else record
+        )
 
     (out / 'predictions.json').write_text(
         json.dumps(records, ensure_ascii=False, indent=2),

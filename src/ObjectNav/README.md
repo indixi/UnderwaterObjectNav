@@ -51,7 +51,7 @@
 ## 2. 目录结构
 
 ```text
-object_Nav/
+ObjectNav/
 ├── underwater_objectnav_bc_training_plan.md  # 训练需求
 ├── README.md                                 # 本说明
 └── objectnav_bc/
@@ -219,14 +219,27 @@ x,y,z,roll,pitch,yaw,goal_category,expert_action
 
 ## 5. 安装与运行
 
-在 `UnderwaterObjectNav/src/object_Nav` 目录执行：
+在 `UnderwaterObjectNav/src/ObjectNav` 目录执行：
 
 ```powershell
 $env:PYTHONPATH = (Get-Location).Path
 pip install -r objectnav_bc/requirements.txt
 ```
 
-其中 PyTorch 应根据实际 CUDA、GPU 和操作系统从 PyTorch 官方命令安装；DUO GFL 检测器依赖仍按 `duo_gfl_project/README.md` 安装。
+其中 PyTorch 应根据实际 CUDA、GPU 和操作系统从 PyTorch 官方命令安装；DUO GFL 检测器依赖按相邻的 `../image_process_ResNet50/README.md` 安装。
+
+检测器路径统一在 `objectnav_bc/config/bc.yaml` 中配置：
+
+```yaml
+perception:
+  detector:
+    enabled: true
+    config_path: "../../../image_process_ResNet50/configs/gfl_r50_fpn_duo_base.py"
+    checkpoint_path: "../../../image_process_ResNet50/work_dirs/gfl_r50_fpn_duo/best_checkpoint.pth"
+    score_threshold: 0.30
+```
+
+相对路径以 `bc.yaml` 所在目录为基准。以后更换检测器，只修改这两个路径，不需要修改 Python 代码。
 
 ### 5.1 生成语义地图数据
 
@@ -235,32 +248,11 @@ python -m objectnav_bc.dataset.preprocess_dataset `
   --dataset-root D:/path/to/underwater_objectnav_dataset `
   --output-root D:/path/to/underwater_objectnav_dataset/processed `
   --intrinsics FX FY CX CY `
-  --T-base-camera D:/path/to/T_base_camera.npy
+  --T-base-camera D:/path/to/T_base_camera.npy `
+  --config objectnav_bc/config/bc.yaml
 ```
 
-如果暂时不接 DUO 检测器，上述命令仍可生成基础地图。接入检测器时，在 Python 中创建：
-
-```python
-from objectnav_bc.perception.semantic_detector import MMDetSemanticDetector
-from objectnav_bc.dataset.preprocess_dataset import build
-from objectnav_bc.perception.depth_projection import CameraIntrinsics
-import numpy as np
-
-detector = MMDetSemanticDetector(
-    config="../../../../duo_gfl_project/configs/gfl_r50_fpn_duo_base.py",
-    checkpoint="path/to/best_checkpoint.pth",
-    score_threshold=0.30,
-)
-build(
-    dataset_root="path/to/dataset",
-    output_root="path/to/dataset/processed",
-    intrinsics=CameraIntrinsics(fx, fy, cx, cy),
-    T_base_camera=np.load("path/to/T_base_camera.npy"),
-    detector=detector,
-)
-```
-
-也可以使用 `duo_gfl_project/tools/infer.py` 生成的缓存 JSON，通过 `JsonDetectionDetector` 接入，避免预处理时重复跑检测器。
+如果暂时不接 DUO 检测器，将 YAML 中的 `enabled` 设为 `false`，仍可生成基础地图。设为 `true` 后，程序会检查模型配置和权重文件，再自动加载检测器。也可以使用 `../image_process_ResNet50/tools/infer.py` 生成的缓存 JSON，通过 `JsonDetectionDetector` 接入，避免重复推理。
 
 ### 5.2 训练 BC 策略
 

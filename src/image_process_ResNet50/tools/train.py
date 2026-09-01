@@ -74,18 +74,18 @@ def validate_data(root: Path):
         root / 'images/train',
         root / 'images/test',
     ]
-    missing = [str(x) for x in needed if not x.exists()]
+    missing = [str(x) for x in needed if not x.exists()]    #从 needed 里找出缺失的文件或目录
     if missing:
         raise FileNotFoundError('DUO data is incomplete:\n  ' + '\n  '.join(missing))
 
     info = {}
     for split in ('train', 'test'):
         ann_file = root / 'annotations' / f'instances_{split}.json'
-        data = json.loads(ann_file.read_text(encoding='utf-8'))
+        data = json.loads(ann_file.read_text(encoding='utf-8')) # 读取并解析 JSON 标注文件
 
         # COCO categories 通常用 id 表示类别。按 id 排序后得到的类别名
         # 必须等于 CLASSES，否则训练出来的标签会和真实类别错位。
-        names = tuple(c['name'] for c in sorted(data['categories'], key=lambda x: x['id']))
+        names = tuple(c['name'] for c in sorted(data['categories'], key=lambda x: x['id'])) #tuple是不可变的列表，sorted是排序函数，key=lambda x: x['id']表示按id排序，这里是按类别id排序后得到的类别名
         if names != CLASSES:
             raise ValueError(f'{split} category mapping {names} != {CLASSES}')
 
@@ -165,11 +165,11 @@ def main():
 
     if args.resume:
         cfg.resume = True
-        cfg.load_from = None if args.resume == 'auto' else args.resume
+        cfg.load_from = None if args.resume == 'auto' else args.resume  #不是从零训练而是继续训练，如果等于auto则会自动从 work_dir/latest.pth 续训，否则从指定 checkpoint 续训，如果不是就需要提供具体的 checkpoint 路径
 
     # 保存一份最终解析后的配置。以后复现实验时，看这个文件最准确。
     Path(cfg.work_dir).mkdir(parents=True, exist_ok=True)
-    cfg.dump(str(Path(cfg.work_dir) / 'resolved_config.py'))
+    cfg.dump(str(Path(cfg.work_dir) / 'resolved_config.py'))    #把这次训练的配置保存到 work_dir/resolved_config.py，方便复现
 
     print('Classes:', dict(enumerate(CLASSES)))
     print('Dataset:', info)

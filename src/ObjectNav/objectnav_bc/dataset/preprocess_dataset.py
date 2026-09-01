@@ -1,16 +1,19 @@
 """将采集器 Episode 转换为累积语义地图 BC 数据。
 
 Example:
-  python preprocess_dataset.py --dataset-root DATA --output-root DATA/processed
-  --intrinsics 500 500 320 240 --T-base-camera T.npy --T-world-base-mode pose
+  python -m objectnav_bc.dataset.preprocess_dataset --dataset-root DATA
+  --output-root DATA/processed --intrinsics 500 500 320 240
+  --T-base-camera T.npy --config objectnav_bc/config/bc.yaml
 """
 from __future__ import annotations
 import argparse, csv, json
 from pathlib import Path
 import numpy as np
+from ..config_loader import load_bc_config
 from ..constants import ACTION_TO_ID, GOAL_TO_ID
 from ..mapping.semantic_mapper import MapConfig, SemanticMapper
 from ..perception.depth_projection import CameraIntrinsics
+from ..perception.semantic_detector import MMDetSemanticDetector
 from .bc_dataset import split_by_episode
 
 
@@ -55,10 +58,32 @@ def build(dataset_root, output_root, intrinsics, T_base_camera, detector=None, m
 
 
 def main():
-    """命令行入口；地图参数从 bc.yaml 读取。"""
-    p = argparse.ArgumentParser(); p.add_argument("--dataset-root", required=True); p.add_argument("--output-root", required=True)
-    p.add_argument("--intrinsics", nargs=4, type=float, required=True, metavar=("FX", "FY", "CX", "CY")); p.add_argument("--T-base-camera", required=True)
-    p.add_argument("--config", default=str(Path(__file__).resolve().parents[1] / "config" / "bc.yaml"), help="BC 配置文件")
-    a = p.parse_args(); build(a.dataset_root, a.output_root, CameraIntrinsics(*a.intrinsics), np.load(a.T_base_camera), map_config=MapConfig.from_yaml(a.config))
+    """命令行入口；地图和检测器参数统一从 bc.yaml 读取。"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset-root", required=True, help="采集得到的 Episode 数据根目录")
+    parser.add_argument("--output-root", required=True, help="处理后语义地图和清单输出目录")
+    parser.add_argument("--intrinsics", nargs=4, type=float, required=True,
+                        metavar=("FX", "FY", "CX", "CY"), help="深度相机内参")
+    parser.add_argument("--T-base-camera", required=True, help="相机到机器人基座的 4x4 变换 .npy")
+    parser.add_argument("--config",
+                        default=str(Path(__file__).resolve().parents[1] / "config" / "bc.yaml"),
+                        help="统一 BC 配置；检测器 config/checkpoint 在此文件中填写")
+    args = parser.parse_args()
+
+    # 只加载一次 YAML，再把地图和检测器部分分别交给对应模块。
+    runtime = load_bc_config(args.config, validate_detector=True)
+    map_config = MapConfig.from_mapping(runtime.dataset)
+
+    detector = None
+    if runtime.detector.enabled:
+        detector = MMDetSemanticDetector(
+            config=str(runtime.detector.config_path),
+            checkpoint=str(runtime.detector.checkpoint_path),
+            score_threshold=runtime.detector.score_threshold,
+            target_classes=runtime.detector.classes,
+        )
+
+    build(args.dataset_root, args.output_root, CameraIntrinsics(*args.intrinsics),
+          np.load(args.T_base_camera), detector=detector, map_config=map_config)
 
 if __name__ == "__main__": main()

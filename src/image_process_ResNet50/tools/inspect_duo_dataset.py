@@ -43,14 +43,14 @@ def main():
         cats = {c['id']: c['name'] for c in doc['categories']}
 
         # byimg: image_id -> 这张图片上的所有标注框。
-        byimg = defaultdict(list)
-        counts = Counter()
-        issues = Counter()
+        byimg = defaultdict(list)   # 整理图上有多少bbox
+        counts = Counter()  #统计每类实例的数量，例如 echinus: 1234。
+        issues = Counter()  #统计标注问题，例如 zero_or_negative_area: 5。
         areas = []
 
         for ann in doc['annotations']:
-            byimg[ann['image_id']].append(ann)
-            counts[cats.get(ann['category_id'], 'INVALID')] += 1
+            byimg[ann['image_id']].append(ann)  # 将每个标注框添加到对应图片的列表中
+            counts[cats.get(ann['category_id'], 'INVALID')] += 1    # 统计每类实例的数量，如果 category_id 不在 cats 中，则计为 INVALID。例如：echinus: 1234，表示有 1234 个 echinus 实例。而也有invalid category_id 的情况，可能是标注错误或数据问题，但是也记录invalid category_id 的数量，方便后续排查问题。
 
             # COCO bbox 格式是 [x, y, width, height]，不是 [x1, y1, x2, y2]。
             x, y, w, h = ann['bbox']
@@ -63,9 +63,9 @@ def main():
             if ann['category_id'] not in cats:
                 issues['invalid_category'] += 1
 
-        images = {x['id']: x for x in doc['images']}
-        missing = []
-        corrupt = []
+        images = {x['id']: x for x in doc['images']}    # image_id -> image_dict，例如 123 -> {'id': 123, 'file_name': '000123.jpg', 'width': 640, 'height': 480}。
+        missing = []    #统计缺失的图片，例如 000123.jpg。
+        corrupt = []    #统计损坏的图片，例如 000456.jpg。
 
         for im in doc['images']:
             path = root / 'images' / split / im['file_name']
@@ -79,7 +79,7 @@ def main():
                     pic.verify()
             except Exception: corrupt.append(im['file_name'])
 
-            for ann in byimg[im['id']]:
+            for ann in byimg[im['id']]: #检查标注框是否超出图片边界
                 x, y, w, h = ann['bbox']
                 if x + w > im['width'] + .01 or y + h > im['height'] + .01:
                     issues['out_of_bounds'] += 1
@@ -88,16 +88,16 @@ def main():
         chosen = random.sample(list(images), min(args.samples, len(images)))
         colors = ['red', 'lime', 'yellow', 'cyan']
 
-        for iid in chosen:
+        for iid in chosen:  # 遍历选中的图片
             im = images[iid]
             src = root / 'images' / split / im['file_name']
             if not src.exists():
                 continue
 
             pic = Image.open(src).convert('RGB')
-            drawer = ImageDraw.Draw(pic)
+            drawer = ImageDraw.Draw(pic)    # 创建一个可以在图片上绘制的对象
 
-            for ann in byimg[iid]:
+            for ann in byimg[iid]:  # 遍历这张图片的所有标注框
                 x, y, w, h = ann['bbox']
                 color_index = ann['category_id'] - 1
                 color = colors[color_index % len(colors)]

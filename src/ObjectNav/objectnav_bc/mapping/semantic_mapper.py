@@ -21,13 +21,14 @@ class MapConfig:
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "MapConfig":
-        """Load map settings from the ``dataset`` section of bc.yaml."""
-        try:
-            import yaml
-        except ImportError as exc:
-            raise RuntimeError("读取 bc.yaml 需要 PyYAML，请安装 requirements.txt") from exc
-        with Path(path).open(encoding="utf-8") as stream:
-            dataset = yaml.safe_load(stream).get("dataset", {})
+        """通过统一配置加载器读取 bc.yaml 中的地图设置。"""
+        from ..config_loader import load_bc_config
+        dataset = load_bc_config(path, validate_detector=False).dataset
+        return cls.from_mapping(dataset)
+
+    @classmethod
+    def from_mapping(cls, dataset: dict) -> "MapConfig":
+        """从已经加载的 dataset 配置字典创建地图参数。"""
         return cls(width_m=float(dataset.get("map_width_m", cls.width_m)),
                    height_m=float(dataset.get("map_height_m", cls.height_m)),
                    resolution_m=float(dataset.get("map_resolution_m", cls.resolution_m)),

@@ -28,8 +28,8 @@ def main():
     root = Path(args.data_root).resolve()
     ann = str(root / 'annotations/instances_test.json')
 
-    cfg = Config.fromfile(args.config)
-    cfg.work_dir = args.work_dir
+    cfg = Config.fromfile(args.config)  #加载配置文件
+    cfg.work_dir = args.work_dir    #设置工作目录，存放日志和评估结果
 
     # load_from 表示加载哪个模型权重进行测试。
     cfg.load_from = args.checkpoint
