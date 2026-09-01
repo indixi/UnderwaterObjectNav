@@ -15,3 +15,11 @@ action_executor:
   forward_position_tolerance_m: 0.035
   turn_angle_tolerance_deg: 3.0
   action_timeout_s: 15.0
+
+  # Stonefish world_ned: positive z points down. Reach this depth before
+  # executing queued keyboard actions, then keep publishing it while idle.
+  target_z: 2.0
+  initialize_depth_before_actions: true
+  depth_tolerance_m: 0.05
+  depth_settle_time_s: 0.5
+  hold_reference_when_idle: true

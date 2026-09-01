@@ -61,13 +61,25 @@ class ActionExecutor:
             rospy.get_param(root + "turn_angle_tolerance_deg", 3.0)))
         self.action_timeout = max(
             0.0, float(rospy.get_param(root + "action_timeout_s", 15.0)))
+        self.target_z = float(rospy.get_param(root + "target_z", 2.0))
+        self.initialize_depth_before_actions = bool(rospy.get_param(
+            root + "initialize_depth_before_actions", True))
+        self.depth_tolerance = max(0.0, float(rospy.get_param(
+            root + "depth_tolerance_m", 0.05)))
+        self.depth_settle_time = max(0.0, float(rospy.get_param(
+            root + "depth_settle_time_s", 0.5)))
+        self.hold_reference_when_idle = bool(rospy.get_param(
+            root + "hold_reference_when_idle", True))
 
         self.odom = None
         self.pending = deque()
         self.last_scheduled_time = None
         self.current_request = None
         self.current_target = None
+        self.hold_target = None
         self.start_time = None
+        self.depth_ready = not self.initialize_depth_before_actions
+        self.depth_ready_since = None
 
         self.reference_pub = rospy.Publisher(
             self.reference_topic, PoseStamped, queue_size=1)
@@ -78,6 +90,9 @@ class ActionExecutor:
                          self.request_cb, queue_size=20)
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.rate_hz), self.update)
         rospy.on_shutdown(self.shutdown)
+        rospy.loginfo(
+            "action executor target z=%.3f m (NED), initialize_depth=%s",
+            self.target_z, self.initialize_depth_before_actions)
 
     def odom_cb(self, msg):
         self.odom = msg
@@ -96,7 +111,6 @@ class ActionExecutor:
     def make_target(self, pose, action):
         x = pose.position.x
         y = pose.position.y
-        z = pose.position.z
         yaw = yaw_from_quat(pose.orientation)
         target_yaw = yaw
         if action == "FORWARD":
@@ -112,11 +126,39 @@ class ActionExecutor:
         target.header.stamp = rospy.Time.now()
         target.pose.position.x = x
         target.pose.position.y = y
-        target.pose.position.z = z
+        # Keep every planar keyboard action on one persistent depth reference.
+        # Stonefish uses NED coordinates, so a larger z means deeper water.
+        target.pose.position.z = self.target_z
         q = quat_from_yaw(target_yaw)
         target.pose.orientation.x, target.pose.orientation.y = q[0], q[1]
         target.pose.orientation.z, target.pose.orientation.w = q[2], q[3]
         return target
+
+    def initialize_hold_target(self, pose):
+        if self.hold_target is not None:
+            return
+        self.hold_target = self.make_target(pose, "STOP")
+        rospy.loginfo(
+            "initial depth target: current z=%.3f target z=%.3f",
+            pose.position.z, self.target_z)
+
+    def update_depth_readiness(self, pose, now):
+        if self.depth_ready:
+            return
+        error = abs(pose.position.z - self.target_z)
+        if error > self.depth_tolerance:
+            self.depth_ready_since = None
+            rospy.loginfo_throttle(
+                2.0, "waiting for target depth: z=%.3f target=%.3f error=%.3f",
+                pose.position.z, self.target_z, error)
+            return
+        if self.depth_ready_since is None:
+            self.depth_ready_since = now
+        if (now - self.depth_ready_since).to_sec() >= self.depth_settle_time:
+            self.depth_ready = True
+            rospy.loginfo(
+                "target depth reached: z=%.3f target=%.3f; keyboard actions enabled",
+                pose.position.z, self.target_z)
 
     def request_cb(self, msg):
         action = msg.action.strip().upper()
@@ -150,6 +192,8 @@ class ActionExecutor:
     def start_next(self, now):
         if self.current_request is not None:
             return
+        if not self.depth_ready:
+            return
         if not self.pending or self.pending[0][0] > now:
             return
         due, request = self.pending.popleft()
@@ -161,6 +205,7 @@ class ActionExecutor:
         action = request.action.strip().upper()
         target = self.make_target(pose, action)
         start = rospy.Time.now()
+        self.hold_target = target
         self.current_target = target
         self.start_time = start
         self.reference_pub.publish(target)
@@ -187,6 +232,14 @@ class ActionExecutor:
                             reason=reason)
         rospy.loginfo("finished action id=%d state=%s",
                       request.action_id, state)
+        if state == "SUCCEEDED":
+            self.hold_target = self.current_target
+        else:
+            # A timed-out planar target must not keep driving forever. Hold
+            # the current planar pose while retaining the configured depth.
+            pose = self.current_pose()
+            if pose is not None:
+                self.hold_target = self.make_target(pose, "STOP")
         self.current_request = None
         self.current_target = None
         self.start_time = None
@@ -196,10 +249,14 @@ class ActionExecutor:
 
     def update(self, _event):
         now = rospy.Time.now()
+        pose = self.current_pose()
+        if pose is not None:
+            self.initialize_hold_target(pose)
+            self.update_depth_readiness(pose, now)
+
         if self.current_request is None:
             self.start_next(now)
         else:
-            pose = self.current_pose()
             if pose is not None:
                 target = self.current_target.pose
                 dx = target.position.x - pose.position.x
@@ -218,14 +275,19 @@ class ActionExecutor:
                         (now - self.start_time).to_sec() > self.action_timeout:
                     self.finish_current("TIMEOUT", "action_timeout")
 
-        if self.current_target is not None:
-            self.current_target.header.stamp = now
-            self.reference_pub.publish(self.current_target)
+        reference = self.current_target
+        if reference is None and (self.hold_reference_when_idle or
+                                  not self.depth_ready):
+            reference = self.hold_target
+        if reference is not None:
+            reference.header.stamp = now
+            self.reference_pub.publish(reference)
 
     def shutdown(self):
-        if self.current_target is not None:
-            self.current_target.header.stamp = rospy.Time.now()
-            self.reference_pub.publish(self.current_target)
+        reference = self.current_target or self.hold_target
+        if reference is not None:
+            reference.header.stamp = rospy.Time.now()
+            self.reference_pub.publish(reference)
 
 
 if __name__ == "__main__":

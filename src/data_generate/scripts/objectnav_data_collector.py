@@ -63,6 +63,7 @@ class ObjectNavDataCollector:
         self.latest = None
         self.observation_buffer = deque(maxlen=300)
         self.active = False
+        self.episode_start_time = None
         self.recorded_action_ids = set()
         self.episode_dir = None
         self.episode_id = None
@@ -131,8 +132,12 @@ class ObjectNavDataCollector:
             return
         with self.lock:
             if not self.active:
-                rospy.logwarn("action id=%d started while no Episode is active",
-                              msg.action_id)
+                # Idle keyboard operation is normal. The collector is only an
+                # optional observer and must never interfere with execution.
+                return
+            if self.episode_start_time is not None and \
+                    msg.start_time != rospy.Time() and \
+                    msg.start_time < self.episode_start_time:
                 return
             if msg.action_id in self.recorded_action_ids:
                 return
@@ -188,6 +193,7 @@ class ObjectNavDataCollector:
                 "step_id", "action_id", "action_start_time", "timestamp",
                 "rgb_path", "depth_path", "x", "y", "z", "roll", "pitch",
                 "yaw", "goal_category", "expert_action"])
+            self.episode_start_time = rospy.Time.now()
             self.active = True
             self.step_id = 0
             self.recorded_action_ids.clear()
@@ -279,6 +285,7 @@ class ObjectNavDataCollector:
 
     def reset_state(self):
         self.active = False
+        self.episode_start_time = None
         self.recorded_action_ids.clear()
         self.episode_dir = None
         self.episode_id = None
