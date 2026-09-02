@@ -217,6 +217,11 @@ class ActionExecutor:
             yaw_from_quat(target.pose.orientation))
 
         if action == "STOP":
+            discarded = len(self.pending)
+            self.pending.clear()
+            self.last_scheduled_time = None
+            if discarded:
+                rospy.loginfo("STOP discarded %d queued action(s)", discarded)
             self.publish_status(request, "STOPPED", target,
                                 start_time=start, finish_time=rospy.Time.now())
             self.current_target = None
