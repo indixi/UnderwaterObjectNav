@@ -87,6 +87,8 @@ class ObjectNavDataCollector:
             rospy.get_param("~dataset_root", "") or default_root)
         self.slop = float(rospy.get_param("~sync_slop_s", 0.08))
         self.max_age = float(rospy.get_param("~max_observation_age_s", 0.25))
+        self.auto_end_on_stop = bool(
+            rospy.get_param("~auto_end_on_stop", True))
 
         queue_size = int(rospy.get_param("~sync_queue_size", 20))
         rgb_sub = message_filters.Subscriber(self.rgb_topic, Image)
@@ -141,14 +143,16 @@ class ObjectNavDataCollector:
                 return
             if msg.action_id in self.recorded_action_ids:
                 return
+            action = msg.action.strip().upper()
+            if action not in ACTIONS:
+                rospy.logwarn("ignore unknown action status %r", msg.action)
+                return
             sample = self.sample_near(msg.start_time)
             if sample is None:
                 rospy.logwarn("no synchronized observation near action id=%d start time",
                               msg.action_id)
-                return
-            action = msg.action.strip().upper()
-            if action not in ACTIONS:
-                rospy.logwarn("ignore unknown action status %r", msg.action)
+                if action == "STOP" and self.auto_end_on_stop:
+                    self.finish_episode(False, "stop_observation_missing")
                 return
             try:
                 self.save_step(action, sample, msg.action_id, msg.start_time)
@@ -156,6 +160,14 @@ class ObjectNavDataCollector:
             except (CvBridgeError, IOError, OSError, ValueError) as exc:
                 rospy.logerr("save step failed for action id=%d: %s",
                              msg.action_id, exc)
+                if action == "STOP" and self.auto_end_on_stop:
+                    self.finish_episode(False, "stop_observation_save_failed")
+                return
+            if action == "STOP" and self.auto_end_on_stop:
+                rospy.loginfo(
+                    "STOP action id=%d saved as final step; ending Episode successfully",
+                    msg.action_id)
+                self.finish_episode(True, None)
 
     def sample_near(self, stamp):
         if not self.observation_buffer:
