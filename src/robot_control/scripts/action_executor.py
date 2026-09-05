@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry
 from robot_control.msg import ActionRequest, ActionStatus
 
 
-ACTIONS = ("FORWARD", "TURN_LEFT", "TURN_RIGHT", "STOP")
+ACTIONS = ("FORWARD", "BACKWARD", "TURN_LEFT", "TURN_RIGHT", "STOP")
 
 
 def yaw_from_quat(q):
@@ -51,6 +51,8 @@ class ActionExecutor:
             0.0, float(rospy.get_param(root + "initial_command_delay_s", 0.0)))
         self.forward_distance = float(
             rospy.get_param(root + "forward_distance_m", 0.5))
+        self.backward_distance = float(
+            rospy.get_param(root + "backward_distance_m", 0.5))
         self.turn_angle = math.radians(float(
             rospy.get_param(root + "turn_angle_deg", 30.0)))
         self.odom_timeout = max(
@@ -116,6 +118,9 @@ class ActionExecutor:
         if action == "FORWARD":
             x += self.forward_distance * math.cos(yaw)
             y += self.forward_distance * math.sin(yaw)
+        elif action == "BACKWARD":
+            x -= self.backward_distance * math.cos(yaw)
+            y -= self.backward_distance * math.sin(yaw)
         elif action == "TURN_LEFT":
             target_yaw += self.turn_angle
         elif action == "TURN_RIGHT":
@@ -272,7 +277,7 @@ class ActionExecutor:
                     yaw_from_quat(pose.orientation)))
                 action = self.current_request.action.strip().upper()
                 done = (distance <= self.position_tolerance
-                        if action == "FORWARD"
+                        if action in ("FORWARD", "BACKWARD")
                         else yaw_error <= self.yaw_tolerance)
                 if done:
                     self.finish_current("SUCCEEDED")

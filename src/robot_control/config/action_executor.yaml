@@ -9,8 +9,9 @@ action_executor:
 
   command_delay_s: 5.0
   initial_command_delay_s: 0.0
-  forward_distance_m: 0.5
-  turn_angle_deg: -30.0 #由于z轴朝下，这里右转其实是-30.0度
+  forward_distance_m: 0.25
+  backward_distance_m: 0.25
+  turn_angle_deg: -15.0 #由于z轴朝下，这里右转其实是-30.0度
   odom_timeout_s: 0.25
   forward_position_tolerance_m: 0.035
   turn_angle_tolerance_deg: 3.0
@@ -18,7 +19,7 @@ action_executor:
 
   # Stonefish world_ned: positive z points down. Reach this depth before
   # executing queued keyboard actions, then keep publishing it while idle.
-  target_z: 2.0
+  target_z: 3.0
   initialize_depth_before_actions: true
   depth_tolerance_m: 0.05
   depth_settle_time_s: 0.5

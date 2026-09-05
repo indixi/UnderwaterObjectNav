@@ -19,8 +19,8 @@ goal_category: 'sea_urchin'"
 专家输入直接复用 `robot_control` 中已有的键盘发布器，建议在独立终端启动，以确保终端 stdin 可用。键盘按键映射如下：
 
 ```text
-W：FORWARD       A：TURN_LEFT
-D：TURN_RIGHT    SPACE：STOP
+W：FORWARD       S：BACKWARD（仅用于人工调整，不保存为训练动作）
+A：TURN_LEFT     D：TURN_RIGHT    SPACE：STOP
 Q：退出键盘发布器
 ```
 
@@ -87,6 +87,7 @@ rosservice call /objectnav_data_collector/cancel_episode
 
 ```text
 W       FORWARD
+S       BACKWARD（仅用于人工调整，不保存为训练动作）
 A       TURN_LEFT
 D       TURN_RIGHT
 SPACE   STOP
