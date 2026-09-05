@@ -14,8 +14,8 @@ import rospy
 from robot_control.msg import ActionRequest
 
 
-ACTIONS = {"w": "FORWARD", "a": "TURN_LEFT", "d": "TURN_RIGHT",
-           " ": "STOP"}
+ACTIONS = {"w": "FORWARD", "s": "BACKWARD", "a": "TURN_LEFT",
+           "d": "TURN_RIGHT", " ": "STOP"}
 
 
 class KeyboardActionPublisher:
@@ -58,7 +58,9 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-        rospy.loginfo("Keyboard control: W=forward, A/D=turn, SPACE=STOP, Q=quit")
+        rospy.loginfo(
+            "Keyboard control: W=forward, S=backward, A/D=turn, "
+            "SPACE=STOP, Q=quit")
         while not rospy.is_shutdown():
             ready, _, _ = select.select([sys.stdin], [], [], 0.05)
             if not ready:
