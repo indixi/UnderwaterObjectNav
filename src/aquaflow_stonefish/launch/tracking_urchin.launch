@@ -22,9 +22,9 @@
   <arg name="velocity_reference_topic" default="/robot_control/reference_velocity"/>
 
   <arg name="dataset_root" default="$(find data_generate)/underwater_objectnav_dataset"/>
-  <arg name="target_z" default="2.0"
+  <arg name="target_z" default="3.3"
        doc="Depth target in world_ned metres; positive z points down."/>
-  <arg name="command_delay_s" default="2.5"
+  <arg name="command_delay_s" default="2"
        doc="Delay between scheduled keyboard actions, in seconds."/>
 
   <!-- scene begin -->

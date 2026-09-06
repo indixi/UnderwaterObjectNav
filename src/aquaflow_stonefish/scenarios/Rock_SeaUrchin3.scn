@@ -127,7 +127,7 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock2_surface"/>
-		<world_transform xyz="-1.2 1.2 3.866" rpy="0.0 0.0 -0.35"/>
+		<world_transform xyz="0.2 2.2 4.166" rpy="0.0 0.0 -0.35"/>
 	</static>
 
 	<!-- Three additional rock types distributed across the free pool area. -->
@@ -138,10 +138,10 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock3_surface"/>
-		<world_transform xyz="1.25 -2 3.922" rpy="0.0 0.0 1.18"/>
+		<world_transform xyz="-3.25 -2 3.922" rpy="0.0 0.0 1.18"/>
 	</static>
 
-	<static name="RockSurface04" type="model">
+	<!-- <static name="RockSurface04" type="model">
 		<physical>
 			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock4/source/Rock4.obj" scale="0.36"/>
 			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
@@ -149,7 +149,7 @@
 		<material name="Rock"/>
 		<look name="rock4_surface"/>
 		<world_transform xyz="-4.25 -1.5 3.922" rpy="0.0 0.0 -0.62"/>
-	</static>
+	</static> -->
 
 	<static name="RockSurface05" type="model">
 		<physical>
@@ -158,7 +158,7 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock2_surface"/>
-		<world_transform xyz="4.95 -0.5 3.866" rpy="0.0 0.0 -1.57"/>
+		<world_transform xyz="4.5 -0 4.166" rpy="0.0 0.0 -1.57"/>
 	</static>
 
 	<!-- <static name="RockSurface05" type="model">
@@ -178,8 +178,7 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock3_surface"/>
-		<!-- <world_transform xyz="-3.85 2.35 3.840" rpy="0.0 0.0 0"/> -->
-		<world_transform xyz="-3.85 2.35 3.940" rpy="0.0 0.0 0"/>
+		<world_transform xyz="2.5 -2.55 3.940" rpy="0.0 0.0 0"/>
 	</static>
 
 
@@ -190,7 +189,7 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock4_surface"/>
-		<world_transform xyz="1.85 1.35 3.840" rpy="0.0 0.0 1.57"/>
+		<world_transform xyz="-3.85 1.35 4.040" rpy="0.0 0.0 1.57"/>
 	</static>
 	
 
@@ -266,9 +265,9 @@
 		<arg name="position" value="-5.0 0.0 0.0"/>
 		<arg name="orientation" value="0.0 0.0 0.0"/>
 	</include> -->
-		<include file="$(find aquaflow_stonefish)/scenarios/bricsbot_reference.scn">
+		<!-- <include file="$(find aquaflow_stonefish)/scenarios/bricsbot_reference.scn">
 		<arg name="vehicle_name" value="bricsbot"/>
 		<arg name="position" value="-5.4 2.3 3.3"/>
 		<arg name="orientation" value="0.0 0.0 -1.4"/>
-	</include>
+	</include> -->
 </scenario>

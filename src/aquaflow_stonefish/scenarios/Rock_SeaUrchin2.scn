@@ -127,11 +127,11 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock2_surface"/>
-		<world_transform xyz="-1.2 1.2 3.866" rpy="0.0 0.0 -0.35"/>
+		<world_transform xyz="1.2 -1.2 3.866" rpy="0.0 0.0 -0.35"/>
 	</static>
 
 	<!-- Three additional rock types distributed across the free pool area. -->
-	<static name="RockSurface03" type="model">
+	<!-- <static name="RockSurface03" type="model">
 		<physical>
 			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock3/source/rock_17.obj" scale="3.0"/>
 			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
@@ -139,7 +139,7 @@
 		<material name="Rock"/>
 		<look name="rock3_surface"/>
 		<world_transform xyz="1.25 -2 3.922" rpy="0.0 0.0 1.18"/>
-	</static>
+	</static> -->
 
 	<static name="RockSurface04" type="model">
 		<physical>
@@ -148,10 +148,10 @@
 		</physical>
 		<material name="Rock"/>
 		<look name="rock4_surface"/>
-		<world_transform xyz="-4.25 -1.5 3.922" rpy="0.0 0.0 -0.62"/>
+		<world_transform xyz="-4.25 0 3.922" rpy="0.0 0.0 -0.62"/>
 	</static>
 
-	<static name="RockSurface05" type="model">
+	<!-- <static name="RockSurface05" type="model">
 		<physical>
 			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock2/Rock2.obj" scale="0.02"/>
 			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
@@ -159,7 +159,7 @@
 		<material name="Rock"/>
 		<look name="rock2_surface"/>
 		<world_transform xyz="4.95 -0.5 3.866" rpy="0.0 0.0 -1.57"/>
-	</static>
+	</static> -->
 
 	<!-- <static name="RockSurface05" type="model">
 		<physical>
@@ -179,11 +179,11 @@
 		<material name="Rock"/>
 		<look name="rock3_surface"/>
 		<!-- <world_transform xyz="-3.85 2.35 3.840" rpy="0.0 0.0 0"/> -->
-		<world_transform xyz="-3.85 2.35 3.940" rpy="0.0 0.0 0"/>
+		<world_transform xyz="-0 2.35 3.940" rpy="0.0 0.0 0"/>
 	</static>
 
 
-	<static name="RockSurface07" type="model">
+	<!-- <static name="RockSurface07" type="model">
 		<physical>
 			<mesh filename="$(find aquaflow_stonefish)/scenarios/models/Rock4/source/Rock4.obj" scale="0.36"/>
 			<origin xyz="0.0 0.0 0.0" rpy="-1.5707963268 0.0 0.0"/>
@@ -191,7 +191,7 @@
 		<material name="Rock"/>
 		<look name="rock4_surface"/>
 		<world_transform xyz="1.85 1.35 3.840" rpy="0.0 0.0 1.57"/>
-	</static>
+	</static> -->
 	
 
 	<!--
