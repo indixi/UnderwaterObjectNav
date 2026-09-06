@@ -7,6 +7,7 @@ import argparse
 import math
 import random
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,16 +29,78 @@ class Rock:
     radius_y: float
 
 
-ROCKS = (
-    # These values mirror the active rock definitions in Rock_SeaUrchin.scn.
-    # Commented-out RockSurface and Rock5 definitions are intentionally excluded.
-    Rock("RockSurface02", "Rock2/Rock2.obj", 0.02, -1.20, 1.20, 3.866, -0.35, 0.82, 1.38),
-    Rock("RockSurface03", "Rock3/source/rock_17.obj", 3.0, 1.25, -2.00, 3.922, 1.18, 0.78, 0.86),
-    Rock("RockSurface04", "Rock4/source/Rock4.obj", 0.36, -4.25, -1.50, 3.922, -0.62, 1.08, 0.98),
-    Rock("RockSurface05", "Rock2/Rock2.obj", 0.02, 4.95, -0.50, 3.866, -1.57, 0.82, 1.38),
-    Rock("RockSurface06", "Rock3/source/rock_17.obj", 3.0, -3.85, 2.35, 3.840, 0.00, 0.78, 0.86),
-    Rock("RockSurface07", "Rock4/source/Rock4.obj", 0.36, 1.85, 1.35, 3.840, 1.57, 1.08, 0.98),
-)
+# Sampling footprints are model-specific and expressed in world metres for the
+# scales used by these scenarios. Pose, mesh and scale are read from the SCN.
+ROCK_RADII = {
+    "Rock2/Rock2.obj": (0.82, 1.38),
+    "Rock3/source/rock_17.obj": (0.78, 0.86),
+    "Rock4/source/Rock4.obj": (1.08, 0.98),
+}
+
+
+def parse_numbers(value: str, count: int, description: str):
+    fields = value.split()
+    if len(fields) != count:
+        raise ValueError(
+            f"{description} must contain {count} numbers, got {value!r}")
+    try:
+        return tuple(float(field) for field in fields)
+    except ValueError as exc:
+        raise ValueError(f"invalid {description}: {value!r}") from exc
+
+
+def relative_model_path(filename: str):
+    marker = "/scenarios/models/"
+    normalized = filename.replace("\\", "/")
+    if marker not in normalized:
+        raise ValueError(
+            f"rock mesh must be below scenarios/models: {filename!r}")
+    return normalized.split(marker, 1)[1]
+
+
+def load_rocks(scenario: Path):
+    """Read active RockSurface definitions from a Stonefish SCN file.
+
+    ElementTree does not return elements inside XML comments, so disabled rock
+    blocks are excluded automatically.
+    """
+    try:
+        root = ET.parse(str(scenario)).getroot()
+    except (ET.ParseError, OSError) as exc:
+        raise RuntimeError(f"could not parse scenario {scenario}: {exc}") from exc
+
+    rocks = []
+    for static in root.findall(".//static"):
+        name = static.get("name", "")
+        if not name.startswith("RockSurface"):
+            continue
+        mesh_element = static.find("./physical/mesh")
+        transform = static.find("./world_transform")
+        if mesh_element is None or transform is None:
+            raise ValueError(f"{name} is missing physical/mesh or world_transform")
+
+        mesh = relative_model_path(mesh_element.get("filename", ""))
+        if mesh not in ROCK_RADII:
+            supported = ", ".join(sorted(ROCK_RADII))
+            raise ValueError(
+                f"{name} uses unsupported rock mesh {mesh!r}; "
+                f"add its sampling radii to ROCK_RADII (supported: {supported})")
+        try:
+            scale = float(mesh_element.get("scale", ""))
+        except ValueError as exc:
+            raise ValueError(
+                f"{name} has invalid mesh scale {mesh_element.get('scale')!r}") from exc
+        x, y, z = parse_numbers(
+            transform.get("xyz", ""), 3, f"{name} world_transform xyz")
+        _, _, yaw = parse_numbers(
+            transform.get("rpy", ""), 3, f"{name} world_transform rpy")
+        radius_x, radius_y = ROCK_RADII[mesh]
+        rocks.append(Rock(
+            name, mesh, scale, x, y, z, yaw, radius_x, radius_y))
+
+    if not rocks:
+        raise ValueError(f"no active RockSurface definitions found in {scenario}")
+    return tuple(rocks)
 
 
 URCHINS = {
@@ -167,17 +230,19 @@ def static_xml(name, kind, scale, x, y, contact_z, yaw, location):
     )
 
 
-def generate(package_dir: Path, seed: int, on_rock_count: int, purple_count: int, beside_count: int):
+def generate(package_dir: Path, rocks, seed: int, on_rock_count: int,
+             purple_count: int, beside_count: int):
     rng = random.Random(seed)
     triangles = {
         rock.name: load_mesh(package_dir / "scenarios" / "models" / rock.mesh)
-        for rock in ROCKS
+        for rock in rocks
     }
     occupied = []
     output = [BEGIN, f'\t<!-- seed={seed}; on-rock={on_rock_count + purple_count} models (including {purple_count} purple clusters); beside={beside_count}. -->']
 
     # Large cluster assets are preferentially placed on the broadest rocks.
-    purple_rocks = (ROCKS[2], ROCKS[5], ROCKS[1], ROCKS[4], ROCKS[0], ROCKS[3])
+    purple_rocks = sorted(
+        rocks, key=lambda item: item.radius_x * item.radius_y, reverse=True)
     for index in range(1, purple_count + 1):
         rock = purple_rocks[(index - 1) % len(purple_rocks)]
         kind = "purple"
@@ -193,7 +258,7 @@ def generate(package_dir: Path, seed: int, on_rock_count: int, purple_count: int
         scale = rng.uniform(*spec["scale"])
         radius = spec["radius_factor"] * scale
         # Cycle through every rock, then shuffle the cycle order with the seed.
-        rock = ROCKS[(index - 1 + rng.randrange(len(ROCKS))) % len(ROCKS)]
+        rock = rocks[(index - 1 + rng.randrange(len(rocks))) % len(rocks)]
         x, y, z = sample_on_rock(rng, rock, triangles[rock.name], occupied, radius)
         output.append(static_xml(f"{NAME_PREFIX[kind]}OnRock{index:02d}", kind, scale, x, y, z, rng.uniform(-math.pi, math.pi), f"on {rock.name}"))
 
@@ -203,7 +268,7 @@ def generate(package_dir: Path, seed: int, on_rock_count: int, purple_count: int
         spec = URCHINS[kind]
         scale = rng.uniform(*spec["scale"])
         radius = spec["radius_factor"] * scale
-        rock = ROCKS[(index * 2 - 1) % len(ROCKS)]
+        rock = rocks[(index * 2 - 1) % len(rocks)]
         x, y, z = sample_beside_rock(rng, rock, occupied, radius)
         output.append(static_xml(f"{NAME_PREFIX[kind]}BesideRock{index:02d}", kind, scale, x, y, z, rng.uniform(-math.pi, math.pi), f"beside {rock.name}"))
 
@@ -246,8 +311,11 @@ def main():
     args = parser.parse_args()
     if args.on_rock < 0 or args.purple < 0 or args.beside < 0:
         parser.error("counts must be non-negative")
-    generated = generate(package_dir, args.seed, args.on_rock, args.purple, args.beside)
-    update_scenario(args.scenario.resolve(), generated)
+    scenario = args.scenario.resolve()
+    rocks = load_rocks(scenario)
+    generated = generate(
+        package_dir, rocks, args.seed, args.on_rock, args.purple, args.beside)
+    update_scenario(scenario, generated)
     print(f"Updated {args.scenario} with seed {args.seed}: {args.on_rock + args.purple} on-rock models ({args.purple} purple clusters), {args.beside} beside-rock models")
 
 
