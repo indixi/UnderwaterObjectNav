@@ -89,8 +89,13 @@ python tools/infer.py \
 python tools/evaluate.py \
   --config configs/gfl_r50_fpn_underwater_objectnav.py \
   --checkpoint work_dirs/gfl_r50_fpn_underwater_objectnav/BEST.pth \
-  --split test
+  --split test \
+  --threshold-file outputs/echinus_threshold.json
 ```
+
+这里必须让评估使用 val 阶段已经固定的阈值。最终关注
+`echinus/precision_at_operating_threshold`、`recall_at_operating_threshold`
+以及 `false_positive_at_operating_threshold`，不要再根据 test 选择新阈值。
 
 ## 常见问题
 

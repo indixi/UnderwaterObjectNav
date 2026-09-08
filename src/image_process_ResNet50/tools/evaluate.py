@@ -1,13 +1,15 @@
 """在验证集或测试集上完整评估指定 checkpoint。
 
 默认评估 test，用于训练和阈值选择完成后的最终无偏报告；也可传 ``--split
-val`` 复查训练期指标。Runner 会同时执行标准 COCO bbox 指标和海胆 precision
-优先指标，但本脚本不会更新模型参数。
+val`` 复查训练期指标。最终测试应通过 ``--threshold-file`` 读取只用 val 生成
+的部署阈值，此时报告该固定阈值下的 TP/FP/FN、precision、recall 和 F1，
+而不会在 test 上重新选择阈值。本脚本不会更新模型参数。
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -29,9 +31,37 @@ def main():
     parser.add_argument('--work-dir', default='work_dirs/evaluation')
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--min-echinus-precision', type=float, default=0.95)
+    threshold_group = parser.add_mutually_exclusive_group()
+    threshold_group.add_argument(
+        '--threshold-file',
+        help='JSON produced on val by calibrate_threshold.py')
+    threshold_group.add_argument(
+        '--score-thr', type=float,
+        help='manually fixed deployment threshold; prefer --threshold-file')
     args = parser.parse_args()
     if not 0 < args.min_echinus_precision <= 1:
         parser.error('--min-echinus-precision must be in (0, 1]')
+
+    # 阈值文件与 checkpoint 是一套部署参数。这里只比较文件名而非绝对路径，
+    # 允许把整个工程复制到另一台机器，同时阻止误把其他模型的阈值混进来。
+    operating_threshold = args.score_thr
+    if args.threshold_file:
+        threshold_path = Path(args.threshold_file)
+        if not threshold_path.is_file():
+            parser.error(f'threshold file does not exist: {threshold_path}')
+        threshold_doc = json.loads(threshold_path.read_text(encoding='utf-8'))
+        if 'recommended_threshold' not in threshold_doc:
+            parser.error(
+                f'{threshold_path} does not contain recommended_threshold')
+        operating_threshold = float(threshold_doc['recommended_threshold'])
+        calibrated_checkpoint = threshold_doc.get('checkpoint')
+        if (calibrated_checkpoint and
+                Path(calibrated_checkpoint).name != Path(args.checkpoint).name):
+            parser.error(
+                'threshold/checkpoint mismatch: '
+                f'{Path(calibrated_checkpoint).name} != {Path(args.checkpoint).name}')
+    if operating_threshold is not None and not 0 <= operating_threshold <= 1:
+        parser.error('score threshold must be in [0, 1]')
 
     # 必须在导入 MMEngine/PyTorch 前设置可见显卡。
     os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
@@ -52,12 +82,21 @@ def main():
     cfg.test_dataloader.dataset.data_root = str(root) + os.sep
     cfg.test_dataloader.dataset.ann_file = f'annotations/instances_{args.split}.json'
     cfg.test_dataloader.dataset.data_prefix = dict(img=f'images/{args.split}/')
-    # CocoMetric 需要具体 ann_file；自定义指标只需同步 precision 约束。
+    # CocoMetric 需要具体 ann_file。若提供了 val 校准阈值，自定义指标只报告
+    # 这个固定工作点，不在 test 上重新寻找另一个“最佳”阈值。
     for evaluator in cfg.test_evaluator:
         if evaluator.type == 'CocoMetric':
             evaluator.ann_file = str(annotation)
         elif evaluator.type == 'TargetPrecisionMetric':
             evaluator.min_precision = args.min_echinus_precision
+            if operating_threshold is not None:
+                evaluator.reference_threshold = operating_threshold
+                evaluator.report_threshold_search = False
+    if args.split == 'test' and operating_threshold is None:
+        print(
+            'WARNING: no fixed deployment threshold was provided; COCO AP is '
+            'valid, but the searched test threshold must not be used for tuning.',
+            file=sys.stderr)
     # test() 只做前向推理和指标汇总，不创建优化器，也不会修改 checkpoint。
     Runner.from_cfg(cfg).test()
 

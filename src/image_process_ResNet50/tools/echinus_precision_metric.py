@@ -40,6 +40,7 @@ class TargetPrecisionMetric(BaseMetric):
 
     def __init__(self, target_label=0, target_name='echinus', iou_threshold=0.5,
                  min_precision=0.95, reference_threshold=0.5,
+                 report_threshold_search=True,
                  collect_device='cpu', prefix=None):
         # BaseMetric 负责多卡结果收集；collect_device='cpu' 可降低显存占用。
         super().__init__(collect_device=collect_device, prefix=prefix or target_name)
@@ -47,6 +48,10 @@ class TargetPrecisionMetric(BaseMetric):
         self.iou_threshold = iou_threshold
         self.min_precision = min_precision
         self.reference_threshold = reference_threshold
+        # 训练/验证时需要扫描阈值来比较 checkpoint；最终测试若已经从 val
+        # 固定了部署阈值，则关闭扫描报告，避免误把 test 上重新选择的阈值
+        # 当成可部署结果。
+        self.report_threshold_search = report_threshold_search
 
     def process(self, data_batch, data_samples):
         """接收一个验证 batch，并保存计算指标所需的最小字段。"""
@@ -85,13 +90,33 @@ class TargetPrecisionMetric(BaseMetric):
         )
         reference = report['reference']
         selected = report['recommended']
-        # 把 0.95 转成指标名后缀 95，使 CheckpointHook 能引用稳定的 key。
-        suffix = int(round(self.min_precision * 100))
-        return {
-            'precision_at_score_0_50': reference['precision'],
-            'recall_at_score_0_50': reference['recall'],
-            'f1_at_score_0_50': reference['f1'],
-            f'recall_at_precision_{suffix}': selected['recall'],
-            f'precision_at_selected_{suffix}': selected['precision'],
-            f'threshold_at_precision_{suffix}': selected['threshold'],
+        # operating_* 始终表示“调用方事先指定的固定阈值”下的真实结果。
+        # TP/FP/FN 一并输出，便于直接判断误报和漏检的具体数量。
+        metrics = {
+            'operating_threshold': reference['threshold'],
+            'precision_at_operating_threshold': reference['precision'],
+            'recall_at_operating_threshold': reference['recall'],
+            'f1_at_operating_threshold': reference['f1'],
+            'true_positive_at_operating_threshold': reference['true_positive'],
+            'false_positive_at_operating_threshold': reference['false_positive'],
+            'false_negative_at_operating_threshold': reference['false_negative'],
         }
+        # 保留原来固定 score=0.5 的字段，保证旧日志与训练配置仍容易对照。
+        # 当调用方传入其他阈值时不输出这些名字，以免名称与实际阈值不一致。
+        if abs(self.reference_threshold - 0.5) < 1e-12:
+            metrics.update({
+                'precision_at_score_0_50': reference['precision'],
+                'recall_at_score_0_50': reference['recall'],
+                'f1_at_score_0_50': reference['f1'],
+            })
+
+        # 把 0.95 转成指标名后缀 95，使 CheckpointHook 能引用稳定的 key。
+        # 最终测试使用 val 固定阈值时不报告 test 上重新扫描出来的工作点。
+        suffix = int(round(self.min_precision * 100))
+        if self.report_threshold_search:
+            metrics.update({
+                f'recall_at_precision_{suffix}': selected['recall'],
+                f'precision_at_selected_{suffix}': selected['precision'],
+                f'threshold_at_precision_{suffix}': selected['threshold'],
+            })
+        return metrics

@@ -60,21 +60,26 @@ python tools/train.py \
 
 ## 评估与阈值校准
 
-最终测试集只用于一次无偏评估，不用于选择阈值：
-
-```bash
-python tools/evaluate.py \
-  --config configs/gfl_r50_fpn_underwater_objectnav.py \
-  --checkpoint MODEL.pth --split test
-```
-
-使用验证集校准海胆阈值：
+先使用验证集校准海胆阈值：
 
 ```bash
 python tools/calibrate_threshold.py \
   --config configs/gfl_r50_fpn_underwater_objectnav.py \
   --checkpoint MODEL.pth --min-precision 0.95
 ```
+
+再使用固定阈值进行最终 test 评估；测试集只用于一次无偏评估，不用于选择阈值：
+
+```bash
+python tools/evaluate.py \
+  --config configs/gfl_r50_fpn_underwater_objectnav.py \
+  --checkpoint MODEL.pth --split test \
+  --threshold-file outputs/echinus_threshold.json
+```
+
+应先在 val 上运行校准，再用同一个 checkpoint 和生成的阈值文件评估 test。
+测试日志中的 `echinus/*_at_operating_threshold` 是固定部署阈值下的最终结果；
+不要在 test 上重新选择 score。
 
 结果写入 `outputs/echinus_threshold.json`，其中包括推荐阈值、TP/FP/FN、precision、recall、F1，以及是否存在“检出至少一个海胆且满足 precision 约束”的有效工作点。匹配标准为 IoU ≥ 0.5。
 
