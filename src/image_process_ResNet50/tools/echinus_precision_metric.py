@@ -7,10 +7,24 @@ precision（默认 95%）且 recall 最高的置信度阈值。
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from mmengine.evaluator import BaseMetric
 from mmdet.registry import METRICS
 
 from tools.target_metrics import evaluate_target
+
+
+def _field(container, name):
+    """同时读取 MMEngine 字典和 ``BaseDataElement`` 对象中的字段。
+
+    MMEngine 的 ``Evaluator.process`` 会在调用各个 metric 前，把模型返回的
+    ``DetDataSample`` 递归转换成普通字典；但直接单独调用本 metric 时也可能
+    收到尚未转换的对象。统一通过这个小函数读取，可以兼容这两种调用路径。
+    """
+    if isinstance(container, Mapping):
+        return container[name]
+    return getattr(container, name)
 
 
 @METRICS.register_module()
@@ -37,23 +51,32 @@ class TargetPrecisionMetric(BaseMetric):
     def process(self, data_batch, data_samples):
         """接收一个验证 batch，并保存计算指标所需的最小字段。"""
         for sample in data_samples:
-            pred = sample.pred_instances.cpu()
-            gt = sample.gt_instances.cpu()
+            # Evaluator 正常运行时 sample、pred 和 gt 都是普通字典；兼容读取
+            # 函数也允许在调试时直接传入 DetDataSample/InstanceData 对象。
+            pred = _field(sample, 'pred_instances')
+            gt = _field(sample, 'gt_instances')
+            pred_boxes = _field(pred, 'bboxes').detach().cpu()
+            pred_scores = _field(pred, 'scores').detach().cpu()
+            pred_labels = _field(pred, 'labels').detach().cpu()
+            gt_boxes = _field(gt, 'bboxes').detach().cpu()
+            gt_labels = _field(gt, 'labels').detach().cpu()
             # MMDetection 输出的预测框已恢复到原图坐标，但经过 Resize 的 GT
             # 仍是缩放后坐标。必须用 scale_factor 反缩放，否则二者 IoU 错位，
             # 得到的 precision 与推荐阈值将完全不可信。
-            scale_factor = gt.bboxes.new_tensor(sample.scale_factor).flatten()
+            sample_scale_factor = _field(sample, 'scale_factor')
+            scale_factor = gt_boxes.new_tensor(sample_scale_factor).flatten()
             if scale_factor.numel() == 2:
                 scale_factor = scale_factor.repeat(2)
             if scale_factor.numel() != 4:
-                raise ValueError(f'unexpected scale_factor: {sample.scale_factor}')
-            gt_boxes = gt.bboxes / scale_factor
+                raise ValueError(
+                    f'unexpected scale_factor: {sample_scale_factor}')
+            gt_boxes = gt_boxes / scale_factor
             self.results.append({
-                'pred_boxes': pred.bboxes.numpy().tolist(),
-                'pred_scores': pred.scores.numpy().tolist(),
-                'pred_labels': pred.labels.numpy().tolist(),
+                'pred_boxes': pred_boxes.numpy().tolist(),
+                'pred_scores': pred_scores.numpy().tolist(),
+                'pred_labels': pred_labels.numpy().tolist(),
                 'gt_boxes': gt_boxes.numpy().tolist(),
-                'gt_labels': gt.labels.numpy().tolist(),
+                'gt_labels': gt_labels.numpy().tolist(),
             })
 
     def compute_metrics(self, results):
