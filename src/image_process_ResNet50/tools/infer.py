@@ -1,156 +1,164 @@
-"""对单张图片或文件夹做推理，并输出适合导航使用的 JSON。
+"""对单张图片或目录推理，并输出适合导航模块使用的 JSON。
 
-推理和训练不同：
-训练会更新模型参数；推理只是把图片输入训练好的模型，得到检测框和分数。
-
-输出内容包括：
-1. 原始 xyxy 检测框；
-2. 置信度分数；
-3. 类别名称；
-4. 归一化后的 cx/cy/w/h，方便后续导航模块使用；
-5. 可视化图片。
+默认只返回海胆，置信度阈值可直接读取验证集校准文件。每个检测同时保存
+像素坐标 xyxy 和归一化中心点/宽高，后者不依赖相机分辨率，更方便下游
+控制器使用。``--all-classes`` 可用于调试时同时观察岩石预测。
 """
+
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from PIL import Image
 
 
-CLASSES = ('holothurian', 'echinus', 'scallop', 'starfish')
+# 让 MMEngine 能导入配置引用的 tools.echinus_precision_metric。
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-
-# Only these fields are aligned one-to-one with detections and should be
-# filtered when selecting target classes. Image-level metadata such as
-# image_size must remain unchanged even when its list length happens to match
-# the number of detections.
+# 这些键与检测框一一对应，过滤目标类别时必须用同一组索引同步筛选；
+# image 和 image_size 属于图像级字段，不能因为列表长度巧合而被过滤。
 PER_DETECTION_KEYS = frozenset({
-    'boxes_xyxy',
-    'scores',
-    'labels',
-    'class_names',
+    'boxes_xyxy', 'scores', 'labels', 'class_names',
     'boxes_cxcywh_normalized',
 })
 
 
-def serialize(sample, image_path: Path, threshold: float):
-    """把 MMDetection 的预测结果转成普通 Python 字典。不做推理，而是推理完成了
-
-    sample.pred_instances 里包含模型预测出的 bboxes、scores、labels。
-    这些数据一开始可能在 GPU 上，所以先 .cpu() 移到 CPU，再转成 list，
-    这样 json.dumps 才能保存。
-    """
-    pred = sample.pred_instances.cpu()  #取出预测结果的实例预测，并将其从GPU tensor移动到 CPU tensor上
-
-    # 只保留置信度大于阈值的检测结果。
+def serialize(sample, image_path: Path, threshold: float, classes):
+    """把 GPU 上的 DetDataSample 转成可 JSON 序列化的普通字典。"""
+    pred = sample.pred_instances.cpu()
+    # 二次过滤保证 JSON 与可视化调用使用同一阈值。
     keep = pred.scores >= threshold
     boxes = pred.bboxes[keep].numpy().tolist()
     scores = pred.scores[keep].numpy().tolist()
     labels = pred.labels[keep].numpy().tolist()
+    if any(label < 0 or label >= len(classes) for label in labels):
+        raise ValueError(f'prediction label is outside checkpoint classes: {classes}')
 
     with Image.open(image_path) as image:
         width, height = image.size
-
-    # xyxy: 左上角 x/y + 右下角 x/y，单位是像素。
-    # cxcywh_normalized: 中心点 x/y + 宽高，除以图片宽高后变成 0 到 1，
-    # 更适合传给后续导航或控制模块。
-    normalized = []
-    for x1, y1, x2, y2 in boxes:
-        normalized.append([
+    # 归一化格式依次为中心 x、中心 y、宽、高，数值通常位于 [0,1]。
+    normalized = [
+        [
             (x1 + x2) / (2 * width),
             (y1 + y2) / (2 * height),
             (x2 - x1) / width,
             (y2 - y1) / height,
-        ])
-
+        ]
+        for x1, y1, x2, y2 in boxes
+    ]
     return {
         'image': str(image_path),
         'boxes_xyxy': boxes,
         'scores': scores,
         'labels': labels,
-        'class_names': [CLASSES[i] for i in labels],
+        'class_names': [classes[label] for label in labels],
         'boxes_cxcywh_normalized': normalized,
         'image_size': [height, width],
     }
 
 
-def filter_target(result, target_class='echinus', score_threshold=.3):
-    """只保留目标类别，默认只保留海胆 echinus。
-
-    result 里的某些字段是“每个检测框一个值”的列表，例如 scores、boxes；
-    这些字段需要按 ids 过滤。image、image_size 不是逐框字段，原样保留。
-    """
-    target_classes = {target_class} if isinstance(target_class, str) else set(target_class)
-    ids = [
-        i for i, (name, score) in enumerate(zip(result['class_names'], result['scores']))
-        if name in target_classes and score >= score_threshold
+def filter_target(result, target_classes):
+    """只保留指定类别，并维持所有逐检测字段严格对齐。"""
+    target_classes = set(target_classes)
+    indices = [
+        index for index, name in enumerate(result['class_names'])
+        if name in target_classes
     ]
+    return {
+        key: [value[index] for index in indices] if key in PER_DETECTION_KEYS else value
+        for key, value in result.items()
+    }
 
-    filtered = {}
-    for key, value in result.items():
-        filtered[key] = [value[i] for i in ids] if key in PER_DETECTION_KEYS else value
-    return filtered
+
+def load_threshold(score_threshold, threshold_file):
+    """解析阈值来源；校准文件优先方案与手工阈值互斥。"""
+    if score_threshold is not None and threshold_file:
+        raise ValueError('--score-thr and --threshold-file are mutually exclusive')
+    if threshold_file:
+        doc = json.loads(Path(threshold_file).read_text(encoding='utf-8'))
+        return float(doc['recommended_threshold'])
+    # 未指定时使用偏保守的 0.5，而不是 MMDetection 可视化常用的 0.3。
+    return 0.5 if score_threshold is None else score_threshold
 
 
 def main():
+    """加载模型、枚举输入图片、执行推理并写出汇总 JSON。"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', required=True)
     parser.add_argument('--checkpoint', required=True)
     parser.add_argument('--input', required=True)
     parser.add_argument('--output', default='outputs/inference')
-    parser.add_argument('--score-thr', type=float, default=.3)
-    parser.add_argument(
-        '--target-class', nargs='+', metavar='CLASS',
-        help='只保留指定类别，可同时指定多个类别；不指定则保留全部类别',
-    )
-    # 保留旧参数，避免已有脚本失效；新用法推荐使用 --target-class echinus。
-    parser.add_argument('--echinus-only', action='store_true')
+    parser.add_argument('--score-thr', type=float)
+    parser.add_argument('--threshold-file')
+    parser.add_argument('--target-class', nargs='+', metavar='CLASS')
+    parser.add_argument('--all-classes', action='store_true')
+    parser.add_argument('--echinus-only', action='store_true',
+                        help='deprecated compatibility option; echinus is already the default')
     args = parser.parse_args()
+    if args.all_classes and args.target_class:
+        parser.error('--all-classes and --target-class cannot be used together')
 
-    if args.echinus_only and args.target_class:
-        parser.error('--echinus-only 与 --target-class 不能同时使用')
+    threshold = load_threshold(args.score_thr, args.threshold_file)
+    if not 0 <= threshold <= 1:
+        parser.error('score threshold must be in [0, 1]')
 
     from mmdet.apis import DetInferencer
 
-    inp = Path(args.input)
-    if inp.is_file():
-        paths = [inp]
-    else:
+    input_path = Path(args.input)
+    # 目录模式只读取常见位图后缀，忽略同目录 JSON 或其他辅助文件。
+    if input_path.is_file():
+        paths = [input_path]
+    elif input_path.is_dir():
         paths = sorted(
-            x for x in inp.iterdir()
-            if x.suffix.lower() in {'.jpg', '.jpeg', '.png', '.bmp'}
-        )
+            path for path in input_path.iterdir()
+            if path.suffix.lower() in {'.jpg', '.jpeg', '.png', '.bmp'})
+    else:
+        raise FileNotFoundError(input_path)
+    if not paths:
+        raise ValueError(f'no supported images found in {input_path}')
 
-    out = Path(args.output)
-    out.mkdir(parents=True, exist_ok=True)
-
-    # DetInferencer 是 MMDetection 提供的高级推理接口。
+    output = Path(args.output)
+    output.mkdir(parents=True, exist_ok=True)
     inferencer = DetInferencer(model=args.config, weights=args.checkpoint)
+    # 类别名称从模型/配置元数据读取，不再硬编码旧 DUO 四类，避免标签错位。
+    classes = tuple(inferencer.model.dataset_meta.get('classes', ()))
+    if not classes:
+        raise ValueError('checkpoint/config does not provide dataset class metadata')
+
+    # 海胆是导航目标，因此未传筛选参数时默认只输出 echinus。
+    target_classes = None if args.all_classes else (args.target_class or ['echinus'])
+    unknown = set(target_classes or ()) - set(classes)
+    if unknown:
+        raise ValueError(f'unknown target classes {sorted(unknown)}; available: {classes}')
 
     records = []
     for path in paths:
         result = inferencer(
             str(path),
-            pred_score_thr=args.score_thr,
-            out_dir=str(out / 'visualizations'),
+            pred_score_thr=threshold,
+            out_dir=str(output / 'visualizations'),
             no_save_pred=True,
             return_datasamples=True,
         )
-        record = serialize(result['predictions'][0], path, args.score_thr)
-        target_classes = args.target_class
-        if args.echinus_only:
-            target_classes = ['echinus']
+        record = serialize(
+            result['predictions'][0], path, threshold, classes)
         records.append(
-            filter_target(record, target_class=target_classes, score_threshold=args.score_thr)
-            if target_classes else record
-        )
+            filter_target(record, target_classes) if target_classes else record)
 
-    (out / 'predictions.json').write_text(
-        json.dumps(records, ensure_ascii=False, indent=2),
-        encoding='utf-8',
-    )
+    # 在文件顶层记录本次阈值和类别筛选条件，便于下游追溯推理配置。
+    payload = {
+        'score_threshold': threshold,
+        'target_classes': target_classes or list(classes),
+        'predictions': records,
+    }
+    (output / 'predictions.json').write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(output / 'predictions.json')
 
 
 if __name__ == '__main__':

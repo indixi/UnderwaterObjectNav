@@ -22,13 +22,15 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    """依次检查 Python、CUDA 基础计算和可选的 OpenMMLab CUDA 算子。"""
     args = parse_args()
 
     # 第一步只导入 PyTorch。若这里失败，说明基础深度学习环境尚未安装，
     # 此时继续检查 MMCV 没有意义。
     try:
         import torch
-    except ImportError as e: raise SystemExit('PyTorch is not installed.') from e
+    except ImportError as e:
+        raise SystemExit('PyTorch is not installed.') from e
 
     # 打印并保存这些信息，便于复现实验或远程定位不同机器的版本差异。
     print('OS:', platform.platform())
@@ -48,6 +50,8 @@ def main():
 
     # 不能只依赖 is_available()：这里实际创建 GPU 张量并执行矩阵计算、
     # 反向传播和优化器更新，以覆盖训练所需的基本 CUDA 路径。
+    # 这不是性能测试，只用一个小矩阵覆盖张量分配、矩阵乘、反向传播、
+    # 优化器更新和 CUDA 同步这几条训练必经路径。
     x = torch.randn(32, 32, device='cuda', requires_grad=True)
     loss = (x @ x).square().mean()
     loss.backward()
@@ -64,6 +68,7 @@ def main():
         except (ImportError, ModuleNotFoundError) as e:
             raise SystemExit(f'OpenMMLab import failed: {e}') from e
         from packaging.version import Version
+        # 明确打印三个组件版本，便于定位“Python 能导入但 ABI 不兼容”的问题。
         versions = {
             'MMCV': mmcv.__version__,
             'MMEngine': mmengine.__version__,
@@ -75,6 +80,7 @@ def main():
 
         # 构造两个高度重叠的检测框。在 IoU 阈值 0.5 下，NMS 应仅保留
         # 得分最高的一个框。张量位于 CUDA，因而此处验证的是 GPU 算子。
+        # 两个框高度重叠，IoU=0.64；阈值 0.5 时 NMS 应只保留 0.9 分框。
         boxes = torch.tensor([[0., 0., 10., 10.], [1., 1., 9., 9.]], device='cuda')
         scores = torch.tensor([0.9, 0.8], device='cuda')
         _, keep = nms(boxes, scores, 0.5)
@@ -88,6 +94,7 @@ def main():
     out = Path('outputs/environment')
     out.mkdir(parents=True, exist_ok=True)
 
+    # 环境快照不会影响检查结论，但对复现实验、比较机器差异很有价值。
     commands = [
         ('pip_freeze.txt', [sys.executable, '-m', 'pip', 'freeze']),
         ('nvidia_smi.txt', ['nvidia-smi']),

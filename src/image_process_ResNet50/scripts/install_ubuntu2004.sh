@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Ubuntu 20.04 + RTX 4060 Ti 的可复现 DUO/GFL 环境安装脚本。
+# Ubuntu 20.04 + RTX 4060/4060 Ti 的可复现 GFL 环境安装脚本。
 #
 # 使用前提：
 #   1. 宿主机已经安装 NVIDIA 驱动，并且 nvidia-smi 能识别显卡；
 #   2. 已创建并激活 Python 3.10 的 Conda/venv 环境；
-#   3. 当前目录是 duo_gfl_project 项目根目录。
+#   3. 当前目录是 image_process_ResNet50 项目根目录。
 #
 # 本脚本安装的是 PyTorch 自带的 CUDA 12.1 Runtime，因此正常训练不要求
 # 系统另外安装完整 CUDA Toolkit。只有从源码编译 CUDA 扩展时才需要 nvcc，
@@ -59,7 +59,7 @@ echo "[2/5] Python packaging tools"
 "${PYTHON_BIN}" -m pip install --upgrade "pip<25" "setuptools<70" wheel
 
 echo "[3/5] PyTorch 2.1.0 with CUDA 12.1 runtime"
-# RTX 4060 Ti 属于 Ada 架构（计算能力 8.9），该 CUDA 构建原生支持。
+# RTX 4060/4060 Ti 属于 Ada 架构（计算能力 8.9），该 CUDA 构建原生支持。
 # index-url 确保 torch 来自 PyTorch CUDA 仓库，而不是安装成 CPU 版本。
 "${PYTHON_BIN}" -m pip install \
   torch==2.1.0 torchvision==0.16.0 \
@@ -84,4 +84,4 @@ echo "[5/5] CUDA/MMCV validation"
 "${PYTHON_BIN}" tools/check_env.py --strict
 
 echo "Environment installation completed successfully."
-echo "Place the dataset in data/DUO, then run: bash scripts/train.sh"
+echo "Dataset expected at data/underwater_objectnav_rgb. Run: bash scripts/train.sh"
