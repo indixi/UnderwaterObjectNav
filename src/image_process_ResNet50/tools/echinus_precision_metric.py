@@ -60,17 +60,12 @@ class TargetPrecisionMetric(BaseMetric):
             pred_labels = _field(pred, 'labels').detach().cpu()
             gt_boxes = _field(gt, 'bboxes').detach().cpu()
             gt_labels = _field(gt, 'labels').detach().cpu()
-            # MMDetection 输出的预测框已恢复到原图坐标，但经过 Resize 的 GT
-            # 仍是缩放后坐标。必须用 scale_factor 反缩放，否则二者 IoU 错位，
-            # 得到的 precision 与推荐阈值将完全不可信。
-            sample_scale_factor = _field(sample, 'scale_factor')
-            scale_factor = gt_boxes.new_tensor(sample_scale_factor).flatten()
-            if scale_factor.numel() == 2:
-                scale_factor = scale_factor.repeat(2)
-            if scale_factor.numel() != 4:
-                raise ValueError(
-                    f'unexpected scale_factor: {sample_scale_factor}')
-            gt_boxes = gt_boxes / scale_factor
+            # 当前验证 pipeline 的顺序是 LoadImage -> Resize -> LoadAnnotations。
+            # 标注框在图片 Resize 完成后才从 COCO 文件读取，所以 gt_boxes 从一
+            # 开始就是原图坐标；检测器在 predict(rescale=True) 时也会把预测框
+            # 恢复为原图坐标。二者应直接计算 IoU，不能再除以 scale_factor。
+            # 若重复反缩放 GT，会让所有框发生错位，从而得到 precision=0 的
+            # 假结果，而标准 COCO AP 仍可能很高。
             self.results.append({
                 'pred_boxes': pred_boxes.numpy().tolist(),
                 'pred_scores': pred_scores.numpy().tolist(),

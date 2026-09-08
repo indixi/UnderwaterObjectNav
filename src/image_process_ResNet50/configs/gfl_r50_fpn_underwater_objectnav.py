@@ -113,7 +113,9 @@ train_pipeline = [
 ]
 
 # 验证和测试必须是确定性的，不能使用随机增强，否则同一 checkpoint 每次
-# 得到的指标会变化。预测框会由检测器还原到原图 640x480 坐标系。
+# 得到的指标会变化。这里特意在 Resize 之后才 LoadAnnotations：这样读入的
+# GT 框保持 COCO 原图坐标；检测器也会把预测框还原到原图坐标，两者可以由
+# 自定义 echinus precision 指标直接比较。
 test_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
     dict(type='Resize', scale=(960, 640), keep_ratio=True),
