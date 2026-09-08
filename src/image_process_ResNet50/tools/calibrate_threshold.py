@@ -68,8 +68,13 @@ def main():
             annotations[ann['image_id']].append(xywh_to_xyxy(ann['bbox']))
 
     # DetInferencer 同时加载配置和 checkpoint，并把预测框恢复到原图坐标。
+    # MMDetection 3.3.0 把 show_progress 定义为 DetInferencer 的初始化参数，
+    # 不能在下面逐张调用 inferencer(...) 时传入，否则会被当成未知参数。
     inferencer = DetInferencer(
-        model=args.config, weights=args.checkpoint, device=args.device)
+        model=args.config,
+        weights=args.checkpoint,
+        device=args.device,
+        show_progress=False)
     records = []
     for index, image in enumerate(doc['images'], start=1):
         path = root / 'images' / 'val' / image['file_name']
@@ -79,7 +84,6 @@ def main():
             no_save_vis=True,
             no_save_pred=True,
             return_datasamples=True,
-            show_progress=False,
         )
         pred = result['predictions'][0].pred_instances.cpu()
         # target_metrics 使用统一记录结构；这里仍保留所有预测标签，函数内部
