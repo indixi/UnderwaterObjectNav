@@ -3,6 +3,12 @@
 
 import argparse
 import os
+import sys
+
+
+def non_ros_arguments(arguments):
+    """Remove roslaunch remappings such as ``__name:=`` and ``__log:=``."""
+    return [argument for argument in arguments if ":=" not in argument]
 
 
 def main():
@@ -15,7 +21,7 @@ def main():
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=29500)
-    args = parser.parse_args()
+    args = parser.parse_args(non_ros_arguments(sys.argv[1:]))
 
     command = [
         args.conda_executable,
