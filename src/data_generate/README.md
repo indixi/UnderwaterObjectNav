@@ -13,7 +13,7 @@ roslaunch data_generate data_collector.launch
 ```bash
 rosservice call /objectnav_data_collector/start_episode \
   "scene_id: 'scene_001'
-goal_category: 'sea_urchin'"
+goal_category: 'echinus'"
 ```
 
 专家输入直接复用 `robot_control` 中已有的键盘发布器，建议在独立终端启动，以确保终端 stdin 可用。键盘按键映射如下：
@@ -127,7 +127,7 @@ Q       退出键盘节点
 ```bash
 rosservice call /objectnav_data_collector/start_episode \
 "scene_id: 'scene_001'
-goal_category: 'sea_urchin'"
+goal_category: 'echinus'"
 ```
 
 采集系统不会请求、保存或使用海胆真实位置；专家只能依据第一视角观测进行搜索。
@@ -258,7 +258,7 @@ underwater_objectnav_dataset/
 trajectory.csv 的字段为：
 
 ```text
-step_id,timestamp,rgb_path,depth_path,x,y,z,roll,pitch,yaw,goal_category,expert_action
+step_id,action_id,action_start_time,timestamp,rgb_path,depth_path,x,y,z,roll,pitch,yaw,goal_category,expert_action
 ```
 
 每行对应一个动作执行前的观测。Depth 保存为 float32 NumPy 数组。

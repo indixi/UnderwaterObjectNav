@@ -1,28 +1,73 @@
-"""Small closed-loop policy adapter.
+"""Policy-only adapter retained for later online integration (no ROS code)."""
 
-The ROS node can call ``predict`` after updating its persistent SemanticMapper.
-Environment-specific ROS topics and low-level action execution intentionally
-remain outside this package.
-"""
+import numpy as np
 import torch
-from ..models import MapEncoder, BCPolicy
+
 from ..constants import ACTION_NAMES, GOAL_TO_ID
+from ..models import build_policy_components
 
 
 class ClosedLoopPolicy:
-    """加载 BC checkpoint，并为 ROS 闭环提供单步动作预测。"""
-
     def __init__(self, checkpoint, device="cpu"):
-        self.device = torch.device(device); state = torch.load(checkpoint, map_location=self.device)    #选择运行的设备cpu还是gpu，并加载checkpoint文件
-        self.encoder, self.policy = MapEncoder(), BCPolicy(num_goals=len(state.get("goal_names", ("sea_urchin",)))) #创建编码器和策略网络，num_goals是目标类别的数量，这里是1
-        self.encoder.load_state_dict(state["encoder"]); self.policy.load_state_dict(state["policy"])#加载模型参数
-        self.encoder.to(self.device).eval(); self.policy.to(self.device).eval() #将模型移动到指定设备，并设置为评估模式，关闭dropout和batchnorm等训练特性
+        self.device = torch.device(device)
+        self.state = torch.load(checkpoint, map_location=self.device)
+        self.components = build_policy_components(
+            self.state["model_config"], len(self.state["goal_names"]))
+        for component, key in zip(
+            self.components, ("global_encoder", "local_encoder", "policy")
+        ):
+            component.load_state_dict(self.state[key])
+            component.to(self.device).eval()
 
     @torch.no_grad()
-    def predict(self, semantic_map, goal_category="sea_urchin", yaw=0.0):
-        """输入当前累计地图和状态，返回动作 ID、名称及四类概率。"""
-        x = torch.as_tensor(semantic_map, dtype=torch.float32, device=self.device).unsqueeze(0) #将输入的累计语义地图转换为张量，并添加一个批次维度在最前面
-        goal = torch.tensor([GOAL_TO_ID.get(goal_category, 0)], device=self.device)
-        angle = torch.tensor([yaw], dtype=torch.float32, device=self.device)
-        probs = self.policy(self.encoder(x), goal, angle).softmax(-1)[0]    #计算动作概率分布，先通过编码器提取特征，再通过策略网络得到动作 logits，最后对 logits 进行 softmax 得到概率分布，并取出第一个样本的概率，对最后一个维度进行softmax，得到四类动作的概率分布
-        action = int(probs.argmax()); return {"action_id": action, "action": ACTION_NAMES[action], "probabilities": probs.cpu().tolist()}
+    def predict(
+        self,
+        global_map,
+        local_map,
+        target_visible,
+        target_bearing_rad,
+        target_distance_m,
+        goal_category="echinus",
+        yaw=0.0,
+    ):
+        target_config = self.state["target_config"]
+        cue = np.zeros(3, dtype=np.float32)
+        if target_visible:
+            cue[:] = (
+                1.0,
+                np.clip(
+                    target_bearing_rad / target_config["bearing_scale_rad"],
+                    -1.0,
+                    1.0,
+                ),
+                np.clip(
+                    target_distance_m / target_config["distance_scale_m"],
+                    0.0,
+                    1.0,
+                ),
+            )
+        global_tensor = torch.as_tensor(
+            global_map, dtype=torch.float32, device=self.device).unsqueeze(0)
+        local_tensor = torch.as_tensor(
+            local_map, dtype=torch.float32, device=self.device).unsqueeze(0)
+        target_tensor = torch.as_tensor(
+            cue, dtype=torch.float32, device=self.device).unsqueeze(0)
+        goal = torch.tensor(
+            [GOAL_TO_ID[goal_category]], device=self.device)
+        yaw_tensor = torch.tensor(
+            [yaw], dtype=torch.float32, device=self.device)
+        global_feature = self.components[0](global_tensor)
+        local_feature = self.components[1](local_tensor)
+        probabilities = self.components[2](
+            global_feature,
+            local_feature,
+            goal,
+            target_tensor,
+            yaw_tensor,
+        ).softmax(-1)[0]
+        action = int(probabilities.argmax())
+        return {
+            "action_id": action,
+            "action": ACTION_NAMES[action],
+            "probabilities": probabilities.cpu().tolist(),
+        }

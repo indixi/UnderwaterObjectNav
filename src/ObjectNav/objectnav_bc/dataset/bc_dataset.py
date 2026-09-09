@@ -1,52 +1,95 @@
-"""BC 数据集和 Episode 级别数据划分。"""
+"""Episode-level splitting and processed Behavior Cloning dataset."""
+
 import json
 from collections import Counter
 from pathlib import Path
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+
 from ..constants import ACTION_TO_ID, GOAL_TO_ID
-
-
-def split_by_episode(records, seed=42, ratios=(.70, .15, .15)):
-    """按 Episode 划分记录，禁止同一轨迹泄漏到多个数据集。
-
-    先随机打乱 Episode ID，再按 70/15/15 比例分组；随机种子固定后
-    可以复现实验划分。
-    """
-    episodes = sorted({str(r["episode_id"]) for r in records})  #找出所有不同的 episode_id，并排序
-    rng = np.random.default_rng(seed); rng.shuffle(episodes)    #随机打乱 episode_id 的顺序，使用指定的随机种子
-    n = len(episodes); n_train = int(n * ratios[0]); n_val = int(n * ratios[1]) #计算要划分的数据集
-    groups = (set(episodes[:n_train]), set(episodes[n_train:n_train+n_val]), set(episodes[n_train+n_val:])) #划分数据集
-    return [[r for r in records if str(r["episode_id"]) in group] for group in groups]  #对于 groups 里的每一组 episode ID，都去 records 里把属于这一组 episode 的记录挑出来，最后得到三组记录。
+from .splits import split_by_episode
 
 
 class BehaviorCloningDataset(Dataset):
-    """读取 jsonl 清单和对应的累计语义地图。"""
-
     def __init__(self, manifest, root=None):
-        self.root = Path(root or Path(manifest).parent).resolve()   #确定根目录，如果没有指定，则使用清单文件所在的目录，是Path(manifest).parent是获取清单文件的父目录，Path(manifest).parent.resolve()是获取清单文件的绝对路径
-        with open(manifest, encoding="utf-8") as f:    #打开文件 
-            self.records = [json.loads(line) for line in f if line.strip()] #读取每一行，去掉空白行，并将每一行的 JSON 字符串解析为 Python 对象，存储在列表中
-        if not self.records: raise ValueError(f"No records in {manifest}")
+        manifest = Path(manifest).resolve()
+        self.root = Path(root or manifest.parent).resolve()
+        with manifest.open(encoding="utf-8") as stream:
+            self.records = [
+                json.loads(line) for line in stream if line.strip()]
+        if not self.records:
+            raise ValueError(f"No records in {manifest}")
 
-    def __len__(self): return len(self.records)
+        metadata_path = self.root / "metadata.json"
+        if not metadata_path.is_file():
+            raise FileNotFoundError(f"processed metadata missing: {metadata_path}")
+        self.metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        target = self.metadata["runtime"]["target"]
+        self.bearing_scale = float(target["bearing_scale_rad"])
+        self.distance_scale = float(target["distance_scale_m"])
+        self.global_shape = tuple(self.metadata["global_map_shape"])
+        self.local_shape = tuple(self.metadata["local_map_shape"])
+
+    def __len__(self):
+        return len(self.records)
+
+    def _load_map(self, record, key, expected_shape):
+        path = Path(record[key])
+        if not path.is_absolute():
+            path = self.root / path
+        value = np.load(path).astype(np.float32)
+        if value.shape != expected_shape:
+            raise ValueError(
+                f"{key} shape {value.shape} != {expected_shape}: {path}")
+        return torch.from_numpy(value)
 
     def __getitem__(self, index):
-        """返回训练计划要求的 semantic_map、goal_id、yaw、action 等字段。"""
-        r = self.records[index]
-        map_path = Path(r["semantic_map"])  #找到语义地图路径
-        if not map_path.is_absolute(): map_path = self.root / map_path
-        semantic_map = np.load(map_path).astype(np.float32) #读取语义地图
-        if semantic_map.ndim != 3: raise ValueError(f"Expected CxHxW map: {map_path}")  #检查格式
-        action = r["action"]
-        if isinstance(action, str): action = ACTION_TO_ID[action]
-        goal = r.get("goal_id", GOAL_TO_ID.get(r.get("goal_category", "sea_urchin"), 0))    #获取目标类别的 ID，如果没有指定，则默认为 0
-        return {"semantic_map": torch.from_numpy(semantic_map), "goal_id": torch.tensor(goal, dtype=torch.long),
-                "yaw": torch.tensor(float(r["yaw"]), dtype=torch.float32), "action": torch.tensor(action, dtype=torch.long),
-                "episode_id": str(r["episode_id"]), "step_id": int(r["step_id"])}
+        record = self.records[index]
+        action = record["action"]
+        if isinstance(action, str):
+            action = ACTION_TO_ID[action]
+        goal = record.get("goal_id")
+        if goal is None:
+            goal_name = record.get("goal_category", "echinus")
+            if goal_name not in GOAL_TO_ID:
+                raise ValueError(f"unsupported goal_category: {goal_name!r}")
+            goal = GOAL_TO_ID[goal_name]
+        visible = float(record["target_visible"])
+        target_cue = np.zeros(3, dtype=np.float32)
+        if visible:
+            target_cue[:] = (
+                1.0,
+                np.clip(
+                    float(record["target_bearing_rad"]) / self.bearing_scale,
+                    -1.0,
+                    1.0,
+                ),
+                np.clip(
+                    float(record["target_distance_m"]) / self.distance_scale,
+                    0.0,
+                    1.0,
+                ),
+            )
+        return {
+            "global_map": self._load_map(
+                record, "global_map", self.global_shape),
+            "local_map": self._load_map(
+                record, "local_map", self.local_shape),
+            "goal_id": torch.tensor(goal, dtype=torch.long),
+            "target_cue": torch.from_numpy(target_cue),
+            "yaw": torch.tensor(float(record["yaw"]), dtype=torch.float32),
+            "action": torch.tensor(action, dtype=torch.long),
+            "episode_id": str(record["episode_id"]),
+            "step_id": int(record["step_id"]),
+        }
 
 
 def class_counts(dataset):
-    """统计四种专家动作数量，用于计算加权交叉熵权重。"""
-    return Counter(int(r["action"]) if isinstance(r["action"], int) else ACTION_TO_ID[r["action"]] for r in dataset.records) #统计各种专家动作分别有多少条数据
+    return Counter(
+        int(record["action"])
+        if isinstance(record["action"], int)
+        else ACTION_TO_ID[record["action"]]
+        for record in dataset.records
+    )

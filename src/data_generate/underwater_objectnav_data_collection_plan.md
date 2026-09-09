@@ -217,7 +217,7 @@ underwater_objectnav_dataset/
 dataset_name: underwater_objectnav_bc
 
 goal_categories:
-  - sea_urchin
+  - echinus
 
 actions:
   0: FORWARD
@@ -259,9 +259,9 @@ expert_action
 示例：
 
 ```csv
-step_id,timestamp,rgb_path,depth_path,x,y,z,roll,pitch,yaw,goal_category,expert_action
-0,0.00,rgb/000000.png,depth/000000.npy,1.20,2.10,0.50,0,0,0.35,sea_urchin,TURN_RIGHT
-1,0.42,rgb/000001.png,depth/000001.npy,1.20,2.10,0.50,0,0,0.70,sea_urchin,FORWARD
+step_id,action_id,action_start_time,timestamp,rgb_path,depth_path,x,y,z,roll,pitch,yaw,goal_category,expert_action
+0,1,0.00,0.00,rgb/000000.png,depth/000000.npy,1.20,2.10,0.50,0,0,0.35,echinus,TURN_RIGHT
+1,2,0.42,0.42,rgb/000001.png,depth/000001.npy,1.20,2.10,0.50,0,0,0.70,echinus,FORWARD
 ```
 
 ---
@@ -273,7 +273,7 @@ step_id,timestamp,rgb_path,depth_path,x,y,z,roll,pitch,yaw,goal_category,expert_
 ```yaml
 episode_id: 1
 scene_id: scene_001
-goal_category: sea_urchin
+goal_category: echinus
 
 success: true
 failure_reason: null

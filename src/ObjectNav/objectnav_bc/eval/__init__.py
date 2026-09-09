@@ -1,1 +1,1 @@
-"""离线指标和闭环推理接口。"""
+"""Offline policy evaluation and a future online policy adapter."""

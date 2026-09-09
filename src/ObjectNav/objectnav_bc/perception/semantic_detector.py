@@ -1,53 +1,174 @@
-"""连接 image_process_ResNet50 的 DUO GFL 检测器与语义地图。
+"""Frozen object detector adapters used by the ObjectNav semantic mapper."""
 
-The mapper only depends on ``detect(image)``; importing MMDetection is lazy so
-dataset preparation and policy unit tests work without a GPU environment.
-"""
 from dataclasses import dataclass
 from pathlib import Path
+
 import numpy as np
 
 
 @dataclass
 class Detection:
-    """一个检测结果：像素坐标 bbox、置信度和语义类别。"""
-    bbox: tuple[float, float, float, float]     #目标检测框，(x1, y1, x2, y2)
-    score: float                                #置信度，表示检测框的可信度
-    class_name: str                             ##语义类别，表示检测框对应的物体类别
+    """One object detection in source-image pixel coordinates."""
+
+    bbox: tuple[float, float, float, float]
+    score: float
+    class_name: str
+
+
+def filter_detections(
+    detections: list[Detection], thresholds: dict[str, float]
+) -> list[Detection]:
+    """Apply per-class thresholds without requiring MMDetection."""
+    return [
+        detection
+        for detection in detections
+        if detection.class_name in thresholds
+        and detection.score >= float(thresholds[detection.class_name])
+    ]
 
 
 class MMDetSemanticDetector:
-    """将 MMDetection 推理器封装为语义地图需要的统一 detect 接口。"""
-    #config是配置文件，也就是介绍网络结构，checkpoint是权重文件，score_threshold是置信度阈值，target_classes是目标类别
-    def __init__(self, config: str, checkpoint: str, score_threshold: float = 0.30,
-                 target_classes: tuple[str, ...] = ("holothurian", "echinus", "scallop", "starfish")):
-        # 延迟导入：没有安装 MMDetection 时，仍可使用无检测器的基础地图流程。
-        from mmdet.apis import DetInferencer
-        self.inferencer = DetInferencer(model=config, weights=checkpoint)   #创建MMDetection推理器对象，使用指定的配置文件和权重文件
-        self.score_threshold = score_threshold
-        self.target_classes = target_classes
+    """Frozen MMDetection adapter shared by offline and online ObjectNav.
 
-    def detect(self, image: str | Path | np.ndarray) -> list[Detection]:    #输入可以是图像路径或者图像数组，返回一个检测结果列表
-        """对一张 RGB 图像推理，并转换为地图模块所需的 Detection 列表。"""
-        result = self.inferencer(image, pred_score_thr=self.score_threshold,
-                                 no_save_pred=True, return_datasamples=True)
-        pred = result["predictions"][0].pred_instances.cpu()    #[0]表示第一张图预测结果，这里只有一张图，获取预测结果的实例预测，并将其从GPU tensor移动到 CPU tensor上
+    MMDetection labels are contiguous model indices. For this checkpoint the
+    only valid order is ``0=echinus, 1=rock``. Thresholds are applied per class
+    because the calibrated echinus operating point must not be reused for rock.
+    """
+
+    def __init__(
+        self,
+        config: str,
+        checkpoint: str,
+        class_names: tuple[str, ...] = ("echinus", "rock"),
+        class_thresholds: dict[str, float] | None = None,
+        candidate_score_threshold: float = 0.001,
+    ):
+        # Keep policy-only workflows importable when MMDetection is absent.
+        from mmdet.apis import DetInferencer
+
+        self.inferencer = DetInferencer(model=config, weights=checkpoint)
+        self.class_names = tuple(class_names)
+        if not self.class_names:
+            raise ValueError("class_names cannot be empty")
+
+        model_classes = tuple(
+            self.inferencer.model.dataset_meta.get("classes", ()))
+        if model_classes and model_classes != self.class_names:
+            raise ValueError(
+                "detector class order mismatch: "
+                f"model={model_classes}, configured={self.class_names}"
+            )
+
+        thresholds = class_thresholds or {
+            name: 0.5 for name in self.class_names
+        }
+        unknown = set(thresholds) - set(self.class_names)
+        missing = set(self.class_names) - set(thresholds)
+        if unknown or missing:
+            raise ValueError(
+                f"class thresholds mismatch; missing={sorted(missing)}, "
+                f"unknown={sorted(unknown)}"
+            )
+        self.class_thresholds = {
+            name: float(thresholds[name]) for name in self.class_names
+        }
+        self.candidate_score_threshold = float(candidate_score_threshold)
+        if any(
+            not 0.0 <= value <= 1.0
+            for value in self.class_thresholds.values()
+        ):
+            raise ValueError("all class thresholds must be in [0, 1]")
+        if not 0.0 <= self.candidate_score_threshold <= 1.0:
+            raise ValueError("candidate_score_threshold must be in [0, 1]")
+
+        # Stage-one ObjectNav freezes perception. These flags make that
+        # boundary explicit even when embedded in a larger PyTorch process.
+        self.inferencer.model.eval()
+        for parameter in self.inferencer.model.parameters():
+            parameter.requires_grad_(False)
+
+    def detect(self, image: str | Path | np.ndarray) -> list[Detection]:
+        """Detect one RGB frame and return mapper-compatible detections."""
+        return self.filter_detections(self.detect_candidates(image))
+
+    def detect_candidates(
+        self, image: str | Path | np.ndarray
+    ) -> list[Detection]:
+        """Return low-threshold post-NMS candidates for reusable caching."""
+        inferencer_input = str(image) if isinstance(image, Path) else image
+        result = self.inferencer(
+            inferencer_input,
+            pred_score_thr=self.candidate_score_threshold,
+            no_save_pred=True,
+            return_datasamples=True,
+        )
+        pred = result["predictions"][0].pred_instances.cpu()
         detections = []
-        for box, score, label in zip(pred.bboxes.numpy(), pred.scores.numpy(), pred.labels.numpy()):    #zip把三个列表相同位置的东西捆到一起
-            name = self.target_classes[int(label)]  #根据标签索引获取对应的类别名称
-            detections.append(Detection(tuple(map(float, box)), float(score), name))
+        for box, score, label in zip(
+            pred.bboxes.numpy(), pred.scores.numpy(), pred.labels.numpy()
+        ):
+            label = int(label)
+            if label < 0 or label >= len(self.class_names):
+                raise ValueError(
+                    f"prediction label {label} is outside {self.class_names}"
+                )
+            name = self.class_names[label]
+            detections.append(
+                Detection(tuple(map(float, box)), float(score), name)
+            )
         return detections
+
+    def filter_detections(
+        self, detections: list[Detection]
+    ) -> list[Detection]:
+        """Apply the deployment threshold belonging to each class."""
+        return filter_detections(detections, self.class_thresholds)
+
+
+def build_semantic_detector(config, require_threshold: bool = True):
+    """Build the configured detector, or return ``None`` when disabled.
+
+    Offline preprocessing and a future ROS node should both use this factory,
+    keeping checkpoint details out of the navigation implementation.
+    """
+    if not config.enabled:
+        return None
+    config.validate(require_threshold=require_threshold)
+    thresholds = (
+        config.resolved_score_thresholds()
+        if require_threshold
+        else {name: config.score_threshold for name in config.classes}
+    )
+    return MMDetSemanticDetector(
+        config=str(config.config_path),
+        checkpoint=str(config.checkpoint_path),
+        class_names=config.classes,
+        class_thresholds=thresholds,
+        candidate_score_threshold=config.candidate_score_threshold,
+    )
 
 
 class JsonDetectionDetector:
-    """读取 image_process_ResNet50/tools/infer.py 生成的缓存 JSON。"""
-    def __init__(self, records: dict, score_threshold: float = 0.30):   #records是一个字典，存储了图像路径和对应的检测结果，score_threshold是置信度阈值
-        self.records, self.score_threshold = records, score_threshold
+    """Read cached detections produced by image inference tooling."""
+
+    def __init__(self, records: dict, score_threshold: float = 0.30):
+        self.records = records
+        self.score_threshold = score_threshold
 
     def detect(self, image: str | Path | np.ndarray) -> list[Detection]:
-        """按图像路径查找缓存记录；找不到时返回空检测列表。"""
-        key = str(Path(image).resolve()) if not isinstance(image, np.ndarray) else ""   #如果image不是numpy数组，则将其转换为绝对路径字符串作为key，否则key为空字符串
+        """Look up a path-keyed record; return no detections if absent."""
+        key = (
+            str(Path(image).resolve())
+            if not isinstance(image, np.ndarray)
+            else ""
+        )
         record = self.records.get(key, self.records.get(str(image), {}))
-        return [Detection(tuple(box), float(score), name)
-                for box, score, name in zip(record.get("boxes_xyxy", []), record.get("scores", []),
-                                            record.get("class_names", [])) if score >= self.score_threshold]
+        return [
+            Detection(tuple(box), float(score), name)
+            for box, score, name in zip(
+                record.get("boxes_xyxy", []),
+                record.get("scores", []),
+                record.get("class_names", []),
+            )
+            if score >= self.score_threshold
+        ]

@@ -1,1 +1,1 @@
-"""BC 训练入口。"""
+"""Behavior-cloning training entry points."""

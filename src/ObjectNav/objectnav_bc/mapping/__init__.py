@@ -1,5 +1,24 @@
-"""将 RGB-D 和检测结果转换为持久化语义地图。"""
+"""Persistent global and egocentric local semantic mapping."""
 
-from .semantic_mapper import SemanticMapper, MapConfig
+from .global_semantic_map import (
+    GLOBAL_CHANNELS,
+    GlobalSemanticMap,
+    WorldMapSpec,
+)
+from .local_egocentric_map import (
+    LOCAL_CHANNELS,
+    LocalEvidenceMap,
+    LocalMapSpec,
+)
+from .mapping_pipeline import MappingOutput, SemanticMappingPipeline
 
-__all__ = ["SemanticMapper", "MapConfig"]
+__all__ = [
+    "GLOBAL_CHANNELS",
+    "LOCAL_CHANNELS",
+    "GlobalSemanticMap",
+    "LocalEvidenceMap",
+    "WorldMapSpec",
+    "LocalMapSpec",
+    "MappingOutput",
+    "SemanticMappingPipeline",
+]

@@ -115,7 +115,7 @@ class ObjectNavDataCollector:
             return
         with open(path, "w", encoding="utf-8") as out:
             out.write("dataset_name: underwater_objectnav_bc\n")
-            out.write("goal_categories:\n  - sea_urchin\n")
+            out.write("goal_categories:\n  - echinus\n")
             out.write("actions:\n  0: FORWARD\n  1: TURN_LEFT\n  2: TURN_RIGHT\n  3: STOP\n")
             out.write("camera:\n  rgb_topic: %s\n  depth_topic: %s\n" %
                       (yaml_scalar(self.rgb_topic), yaml_scalar(self.depth_topic)))
