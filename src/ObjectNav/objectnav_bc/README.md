@@ -119,20 +119,13 @@ MMDetection/MMEngine 的安装版本应与训练 GFL 时一致。
 第一步，只运行一次冻结检测器并保存低阈值、NMS 后候选框：
 
 ```powershell
-python -m objectnav_bc.dataset.cache_detections `
-  --dataset-root ../../../underwater_objectnav_dataset `
-  --output-root ../../../underwater_objectnav_dataset/detection_cache `
-  --config objectnav_bc/config/bc.yaml
+python -m objectnav_bc.dataset.cache_detections --dataset-root objectnav_bc/data/underwater_objectnav_dataset  --output-root objectnav_bc/data/underwater_objectnav_dataset/detection_cache  --config objectnav_bc/config/bc.yaml
 ```
 
 第二步，根据当前部署阈值融合深度并生成地图：
 
 ```powershell
-python -m objectnav_bc.dataset.preprocess_dataset `
-  --dataset-root ../../../underwater_objectnav_dataset `
-  --detection-cache ../../../underwater_objectnav_dataset/detection_cache/detections.jsonl `
-  --output-root ../../../underwater_objectnav_dataset/processed `
-  --config objectnav_bc/config/bc.yaml
+python -m objectnav_bc.dataset.preprocess_dataset  --dataset-root objectnav_bc/data/underwater_objectnav_dataset  --detection-cache objectnav_bc/data/underwater_objectnav_dataset/detection_cache/detections.jsonl  --output-root objectnav_bc/data/underwater_objectnav_dataset/processed  --config objectnav_bc/config/bc.yaml
 ```
 
 地图在磁盘上保存为 `float16`，Dataset 加载时转换为 `float32`。输出包含 `train.jsonl`、`val.jsonl`、`test.jsonl`、`metadata.json` 和每一步的 Global/Local `.npy`。
@@ -140,20 +133,13 @@ python -m objectnav_bc.dataset.preprocess_dataset `
 第三步，训练 BC：
 
 ```powershell
-python -m objectnav_bc.train.train_bc `
-  --data-root ../../../underwater_objectnav_dataset/processed `
-  --work-dir work_dirs/objectnav_bc `
-  --device cuda
+python -m objectnav_bc.train.train_bc  --data-root objectnav_bc/data/underwater_objectnav_dataset/processed  --work-dir work_dirs/objectnav_bc  --device cuda
 ```
 
 第四步，在测试集评估：
 
 ```powershell
-python -m objectnav_bc.eval.eval_offline `
-  --data-root ../../../underwater_objectnav_dataset/processed `
-  --checkpoint work_dirs/objectnav_bc/best_policy.pt `
-  --output work_dirs/objectnav_bc/offline_metrics.json `
-  --device cuda
+python -m objectnav_bc.eval.eval_offline  --data-root objectnav_bc/data/underwater_objectnav_dataset/processed  --checkpoint work_dirs/objectnav_bc/best_policy.pt  --output work_dirs/objectnav_bc/offline_metrics.json  --device cuda
 ```
 
 ## 6. 网络输入

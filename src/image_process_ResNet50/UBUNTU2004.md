@@ -86,11 +86,7 @@ python tools/infer.py \
 最后再运行一次 test 评估：
 
 ```bash
-python tools/evaluate.py \
-  --config configs/gfl_r50_fpn_underwater_objectnav.py \
-  --checkpoint work_dirs/gfl_r50_fpn_underwater_objectnav/BEST.pth \
-  --split test \
-  --threshold-file outputs/echinus_threshold.json
+python tools/evaluate.py  --config configs/gfl_r50_fpn_underwater_objectnav.py   --checkpoint work_dirs/gfl_r50_fpn_underwater_objectnav/BEST.pth   --split test   --threshold-file outputs/echinus_threshold.json
 ```
 
 这里必须让评估使用 val 阶段已经固定的阈值。最终关注

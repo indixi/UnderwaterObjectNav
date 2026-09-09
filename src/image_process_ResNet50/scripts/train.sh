@@ -10,4 +10,4 @@ python tools/train.py \
   --config configs/gfl_r50_fpn_underwater_objectnav.py \
   --data-root "${DATA_ROOT}" \
   --work-dir work_dirs/gfl_r50_fpn_underwater_objectnav \
-  --seed 42 --amp --resume auto --min-echinus-precision 0.95
+  --seed 42 --amp --epochs 48 --min-echinus-precision 0.95

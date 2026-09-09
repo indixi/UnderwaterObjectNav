@@ -22,7 +22,7 @@
        doc="Stonefish graphics quality: low, medium or high"/>
 
   <arg name="scenario_file"
-       value="$(eval {'empty_pool': 'aquaflow_empty_pool.scn', 'rock_seaurchin': 'Rock_SeaUrchin.scn', 'single_obstacle': 'aquaflow_single_obstacle.scn', 'random_pillars': {'bluerov2': 'aquaflow_random_pillars_bluerov2.scn', 'bricsbot': 'aquaflow_random_pillars.scn'}[arg('vehicle_model')]}[arg('scene')])"/>
+       value="$(eval {'empty_pool': 'aquaflow_empty_pool.scn', 'rock_seaurchin': 'Rock_SeaUrchin2.scn', 'single_obstacle': 'aquaflow_single_obstacle.scn', 'random_pillars': {'bluerov2': 'aquaflow_random_pillars_bluerov2.scn', 'bricsbot': 'aquaflow_random_pillars.scn'}[arg('vehicle_model')]}[arg('scene')])"/>
 
   <include file="$(find stonefish_ros)/launch/simulator.launch">
     <arg name="simulation_data"
