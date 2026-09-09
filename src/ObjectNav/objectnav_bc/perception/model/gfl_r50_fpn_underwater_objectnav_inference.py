@@ -112,3 +112,14 @@ test_dataloader = dict(
 
 default_scope = "mmdet"
 
+# MMDetection 3.3's DetInferencer expects a visualizer instance during
+# initialization so it can attach ``model.dataset_meta``.  Even though the
+# ObjectNav cache command does not render or save visualizations, omitting this
+# block makes DetInferencer._init_visualizer() return None and initialization
+# then fails with ``NoneType has no attribute dataset_meta``.
+vis_backends = [dict(type="LocalVisBackend")]
+visualizer = dict(
+    type="DetLocalVisualizer",
+    vis_backends=vis_backends,
+    name="visualizer",
+)
