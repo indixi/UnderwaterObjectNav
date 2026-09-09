@@ -1,0 +1,5 @@
+string goal_category
+---
+bool accepted
+uint64 episode_id
+string message

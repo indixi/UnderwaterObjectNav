@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="scene" default="rock_seaurchin"/>
+  <arg name="vehicle_name" default="bricsbot"/>
+  <arg name="vehicle_model" default="bricsbot"/>
+  <arg name="enable" default="false"
+       doc="Set true only when the robot controller is ready."/>
+  <arg name="target_z" default="3.3"
+       doc="RGB-D sensor target z in world_ned metres (positive downward)."/>
+  <arg name="camera_z_offset_m" default="-0.02"
+       doc="Camera origin z relative to a level robot base; keep equal to bc.yaml."/>
+  <arg name="base_target_z"
+       value="$(eval float(arg('target_z')) - float(arg('camera_z_offset_m')))"/>
+  <arg name="simulation_rate" default="100.0"/>
+  <arg name="graphics_resolution" default="1200 800"/>
+  <arg name="graphics_quality" default="medium"/>
+
+  <arg name="checkpoint"
+       default="$(find objectnav)/work_dirs/objectnav_bc/best_policy.pt"/>
+  <arg name="bc_config"
+       default="$(find objectnav)/objectnav_bc/config/bc.yaml"/>
+  <arg name="online_config"
+       default="$(find objectnav)/config/online.yaml"/>
+  <arg name="record_root"
+       default="/home/yzw/work_khd/catkin_ws/underwater_objectnav_online_runs"/>
+  <arg name="device" default="cuda:0"/>
+
+  <arg name="conda_executable"
+       default="/home/yzw/miniforge3/bin/conda"/>
+  <arg name="conda_env" default="duo-gfl"/>
+  <arg name="worker_host" default="127.0.0.1"/>
+  <arg name="worker_port" default="29500"/>
+  <arg name="inference_interval_s" default="2.0"
+       doc="Minimum interval between consecutive action start times."/>
+
+  <arg name="visualize" default="true"
+       doc="Publish non-blocking ObjectNav debug images."/>
+  <arg name="start_rviz" default="false"
+       doc="Open RViz separately from ObjectNav debug topic publication."/>
+
+  <include file="$(find aquaflow_stonefish)/launch/rock_seaurchin.launch">
+    <arg name="scene" value="$(arg scene)"/>
+    <arg name="vehicle_model" value="$(arg vehicle_model)"/>
+    <arg name="simulation_rate" value="$(arg simulation_rate)"/>
+    <arg name="graphics_resolution" value="$(arg graphics_resolution)"/>
+    <arg name="graphics_quality" value="$(arg graphics_quality)"/>
+  </include>
+
+  <include if="$(arg start_rviz)"
+           file="$(find aquaflow_stonefish)/launch/visualization.launch">
+    <arg name="vehicle_model" value="$(arg vehicle_model)"/>
+  </include>
+
+  <node pkg="robot_control"
+        type="action_executor.py"
+        name="action_executor"
+        output="screen">
+    <rosparam command="load"
+              file="$(find robot_control)/config/action_executor.yaml"/>
+    <param name="action_executor/vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="action_executor/command_delay_s" value="0.0"/>
+    <param name="action_executor/target_z" value="$(arg base_target_z)"/>
+  </node>
+
+  <include file="$(find robot_control)/launch/cascaded_pid_control.launch">
+    <arg name="vehicle_name" value="$(arg vehicle_name)"/>
+    <arg name="reference_topic" value="/aquaflow/nominal_pose"/>
+    <arg name="reference_mode" value="position"/>
+  </include>
+
+  <node pkg="aquaflow_stonefish"
+        type="brics6_thruster_allocator.py"
+        name="brics6_thruster_allocator"
+        output="screen">
+    <param name="vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="enabled" value="$(arg enable)"/>
+  </node>
+
+  <node pkg="objectnav"
+        type="inference_worker_launcher.py"
+        name="objectnav_inference_worker"
+        output="screen"
+        respawn="false"
+        args="--conda-executable $(arg conda_executable) --conda-env $(arg conda_env) --package-root $(find objectnav) --bc-config $(arg bc_config) --checkpoint $(arg checkpoint) --device $(arg device) --host $(arg worker_host) --port $(arg worker_port)"/>
+
+  <node pkg="objectnav"
+        type="online_navigation_node.py"
+        name="objectnav_online"
+        output="screen">
+    <rosparam command="load" file="$(arg online_config)"/>
+    <param name="checkpoint" value="$(arg checkpoint)"/>
+    <param name="bc_config" value="$(arg bc_config)"/>
+    <param name="online_config" value="$(arg online_config)"/>
+    <param name="online/vehicle_name" value="$(arg vehicle_name)"/>
+    <param name="online/scene_id" value="$(arg scene)"/>
+    <param name="online/target_sensor_world_z_m" value="$(arg target_z)"/>
+    <param name="online/worker_host" value="$(arg worker_host)"/>
+    <param name="online/worker_port" value="$(arg worker_port)"/>
+    <param name="online/inference_interval_s"
+           value="$(arg inference_interval_s)"/>
+    <param name="online/record_root" value="$(arg record_root)"/>
+    <param name="online/visualize" value="$(arg visualize)"/>
+  </node>
+</launch>

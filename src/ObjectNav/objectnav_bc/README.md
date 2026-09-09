@@ -1,6 +1,6 @@
 # ObjectNav 离线 BC 使用说明
 
-当前版本只实现离线处理、离线训练和离线评估，不包含 ROS 节点。图像检测器被冻结，BC 反向传播不会修改 GFL/ResNet50/FPN 权重。
+本目录实现离线处理、离线训练、离线评估，以及供 ROS 在线节点复用的纯 Python 推理 Worker。ROS 服务、动作状态机和录制入口位于上级 `scripts/`；完整在线用法见 [`../underwater_objectnav_online_usage.md`](../underwater_objectnav_online_usage.md)。图像检测器被冻结，BC 反向传播不会修改 GFL/ResNet50/FPN 权重。
 
 完整的问题分析和设计依据另见 [`../underwater_objectnav_gfl_depth_bc_reference.md`](../underwater_objectnav_gfl_depth_bc_reference.md)。
 

@@ -42,11 +42,15 @@ class MMDetSemanticDetector:
         class_names: tuple[str, ...] = ("echinus", "rock"),
         class_thresholds: dict[str, float] | None = None,
         candidate_score_threshold: float = 0.001,
+        device: str | None = None,
     ):
         # Keep policy-only workflows importable when MMDetection is absent.
         from mmdet.apis import DetInferencer
 
-        self.inferencer = DetInferencer(model=config, weights=checkpoint)
+        inferencer_args = {"model": config, "weights": checkpoint}
+        if device is not None:
+            inferencer_args["device"] = device
+        self.inferencer = DetInferencer(**inferencer_args)
         self.class_names = tuple(class_names)
         if not self.class_names:
             raise ValueError("class_names cannot be empty")
@@ -125,10 +129,14 @@ class MMDetSemanticDetector:
         return filter_detections(detections, self.class_thresholds)
 
 
-def build_semantic_detector(config, require_threshold: bool = True):
+def build_semantic_detector(
+    config,
+    require_threshold: bool = True,
+    device: str | None = None,
+):
     """Build the configured detector, or return ``None`` when disabled.
 
-    Offline preprocessing and a future ROS node should both use this factory,
+    Offline preprocessing and the online inference worker both use this factory,
     keeping checkpoint details out of the navigation implementation.
     """
     if not config.enabled:
@@ -145,6 +153,7 @@ def build_semantic_detector(config, require_threshold: bool = True):
         class_names=config.classes,
         class_thresholds=thresholds,
         candidate_score_threshold=config.candidate_score_threshold,
+        device=device,
     )
 
 

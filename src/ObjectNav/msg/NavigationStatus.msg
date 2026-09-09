@@ -1,0 +1,10 @@
+std_msgs/Header header
+uint64 episode_id
+string goal_category
+string state
+uint32 step_id
+string last_action
+string failure_reason
+string message
+time start_time
+time finish_time

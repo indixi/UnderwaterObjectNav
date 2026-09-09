@@ -1,0 +1,31 @@
+online:
+  vehicle_name: bricsbot
+  scene_id: rock_seaurchin
+
+  rgb_topic: /bricsbot/rgb/image_color
+  depth_topic: /bricsbot/depth/image_depth
+  pose_topic: /bricsbot/odometry
+  action_request_topic: /underwater_objectnav/action_request
+  action_status_topic: /underwater_objectnav/action_status
+  navigation_status_topic: /underwater_objectnav/navigation_status
+
+  sync_queue_size: 20
+  sync_slop_s: 0.08
+  max_observation_age_s: 0.25
+
+  inference_interval_s: 2.0
+  inference_timeout_s: 1.8
+  max_steps: 100
+
+  # This is the RGB-D sensor origin in world_ned, not the robot base origin.
+  target_sensor_world_z_m: 3.3
+  depth_tolerance_m: 0.05
+  depth_settle_time_s: 0.5
+
+  worker_host: 127.0.0.1
+  worker_port: 29500
+  worker_connect_timeout_s: 1.0
+
+  record_root: /home/yzw/work_khd/catkin_ws/underwater_objectnav_online_runs
+  visualize: true
+  visualization_scale: 5
