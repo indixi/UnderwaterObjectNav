@@ -366,6 +366,16 @@ Global Map 图中同时画出机器人位置与世界朝向；Local Map 中机�
 
 ## 11. 常见问题排查
 
+### Catkin 报找不到 `cola2_msgs`
+
+当前 ObjectNav、`robot_control` 和 `aquaflow_stonefish` 的实际源码都没有使用 `cola2_msgs` 消息。`aquaflow_stonefish` 原先由 Catkin 模板遗留了这项强制依赖，本次已从其 `CMakeLists.txt` 和 `package.xml` 删除，因此不需要为了本 Demo 安装 COLA2。更新代码后强制重新执行 CMake 并构建：
+
+```bash
+cd ~/work_khd/catkin_ws
+catkin build aquaflow_stonefish objectnav --force-cmake
+source devel/setup.bash
+```
+
 ### 服务返回 `inference_worker_not_ready`
 
 检查 GFL/BC 权重路径、Conda 可执行文件与环境名，并查看 launch 终端是否出现：

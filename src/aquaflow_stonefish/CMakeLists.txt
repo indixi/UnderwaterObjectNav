@@ -8,7 +8,6 @@ project(aquaflow_stonefish)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  cola2_msgs
   geometry_msgs
   nav_msgs
   roscpp
@@ -76,7 +75,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   cola2_msgs#   geometry_msgs#   nav_msgs#   sensor_msgs#   std_msgs
+#   geometry_msgs#   nav_msgs#   sensor_msgs#   std_msgs
 # )
 
 ################################################
@@ -111,7 +110,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES aquaflow_stonefish
-#  CATKIN_DEPENDS cola2_msgs geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs stonefish_ros
+#  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs stonefish_ros
 #  DEPENDS system_lib
 )
 
