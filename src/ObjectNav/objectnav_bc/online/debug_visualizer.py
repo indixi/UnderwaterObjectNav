@@ -66,7 +66,10 @@ class DebugVisualizer:
         image[..., 0] = np.maximum(image[..., 0], echinus * 220.0)
         image[..., 2] = np.maximum(image[..., 2], echinus * 255.0)
         image[..., 0] = np.maximum(image[..., 0], value[5] * 255.0)
-        image = np.flipud(np.clip(image, 0, 255).astype(np.uint8))
+        # np.flipud returns a negative-stride view.  OpenCV drawing functions
+        # require writable, C-contiguous image storage.
+        image = np.ascontiguousarray(
+            np.flipud(np.clip(image, 0, 255).astype(np.uint8)))
         pose = result["robot_pose"]
         spec = result["global_map_spec"]
         gx = int((pose["x"] - spec["origin_x"]) / spec["resolution_m"])
